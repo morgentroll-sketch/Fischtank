@@ -180,6 +180,17 @@
     <main id="view-aquarium" class="hidden flex-1 w-full relative">
         <div id="aquariumContainer" class="w-full h-[calc(100vh-73px)] bg-gradient-to-b from-cyan-900 via-blue-900 to-slate-950 relative overflow-hidden transition-all duration-500"></div>
         
+        <!-- NEU: Zoom Slider & UI Overlay -->
+        <div class="absolute top-4 right-4 flex flex-col gap-2 z-10 items-end">
+            <button id="clearAquariumBtn" class="bg-red-600/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-semibold w-full"><i class="fa-solid fa-trash"></i> Leeren</button>
+            
+            <div class="bg-slate-900/80 backdrop-blur px-3 py-2 rounded-lg text-xs text-cyan-300 border border-slate-700/50 flex items-center gap-3 w-full mt-2">
+                <i class="fa-solid fa-search-minus"></i>
+                <input type="range" id="zoomSlider" min="4" max="30" value="12" class="w-24 accent-cyan-400">
+                <i class="fa-solid fa-search-plus"></i>
+            </div>
+        </div>
+
         <div class="absolute top-4 left-4 flex flex-col gap-2 z-10">
             <div class="bg-slate-900/80 backdrop-blur px-3 py-2 rounded-lg text-xs text-cyan-300 border border-slate-700/50">
                 <i class="fa-solid fa-fish"></i> <span id="fishCount">0</span> Objekte
@@ -193,8 +204,6 @@
                 <i class="fa-solid fa-xmark"></i> Entfernen
             </button>
         </div>
-
-        <button id="clearAquariumBtn" class="absolute top-4 right-4 bg-red-600/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-semibold z-10"><i class="fa-solid fa-trash"></i> Leeren</button>
     </main>
 
     <!-- MODAL FÜR DIE DETAILANSICHT -->
@@ -392,7 +401,6 @@ try {
         const contourPoints = traceContour(imgData, W, H);
         if (!contourPoints) return new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xff0000}));
 
-        // PERFORMANCE BOOST: step = 3 statt 1
         const step = 3; 
         const positions = [];
         const uvs = [];
@@ -543,6 +551,7 @@ try {
     const bgUpload = document.getElementById('bgUpload');
     const aquariumContainer = document.getElementById('aquariumContainer');
     const resetBgBtn = document.getElementById('resetBgBtn');
+    const zoomSlider = document.getElementById('zoomSlider');
 
     let currentColor = '#fbbf24';
     let currentBrushSize = 18;
@@ -1047,6 +1056,7 @@ try {
     let bubbleParticles = null;
     let realtimeSubscription = null;
     let groundY = -3.5; 
+    let currentFrustumSize = 12; // NEU: Variable für den Zoom
     
     window.initAquarium = function() {
         const container = document.getElementById('aquariumContainer');
@@ -1055,12 +1065,11 @@ try {
             aquariumScene.fog = new THREE.FogExp2(0x0f172a, 0.02); 
             
             const aspect = container.clientWidth / container.clientHeight;
-            const frustumSize = 20; 
             aquariumCamera = new THREE.OrthographicCamera(
-                frustumSize * aspect / -2,
-                frustumSize * aspect / 2,
-                frustumSize / 2,
-                frustumSize / -2,
+                currentFrustumSize * aspect / -2,
+                currentFrustumSize * aspect / 2,
+                currentFrustumSize / 2,
+                currentFrustumSize / -2,
                 0.1, 1000
             );
             aquariumCamera.position.set(0, 0, 10);
@@ -1099,6 +1108,20 @@ try {
             aquariumClock = new THREE.Clock();
 
             aquariumRenderer.domElement.addEventListener('pointerdown', onAquariumClick);
+
+            // NEU: Zoom-Events
+            zoomSlider.addEventListener('input', (e) => {
+                currentFrustumSize = parseFloat(e.target.value);
+                updateCameraZoom();
+            });
+
+            aquariumContainer.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                currentFrustumSize += e.deltaY * 0.01;
+                currentFrustumSize = Math.max(4, Math.min(30, currentFrustumSize));
+                zoomSlider.value = currentFrustumSize;
+                updateCameraZoom();
+            }, { passive: false });
         }
         
         loadFishFromStorage();
@@ -1115,13 +1138,24 @@ try {
         animateAquarium();
     };
 
+    function updateCameraZoom() {
+        if (!aquariumCamera || !aquariumRenderer) return;
+        const c = aquariumRenderer.domElement;
+        const aspect = c.clientWidth / c.clientHeight;
+        
+        aquariumCamera.left = currentFrustumSize * aspect / -2;
+        aquariumCamera.right = currentFrustumSize * aspect / 2;
+        aquariumCamera.top = currentFrustumSize / 2;
+        aquariumCamera.bottom = currentFrustumSize / -2;
+        aquariumCamera.updateProjectionMatrix();
+    }
+
     function addFishToAquarium(base64Image, type = 'fish', name = 'Unbenannt') {
         const img = new Image();
         img.onload = () => {
             const cv = document.createElement('canvas'); cv.width = 512; cv.height = 512;
             cv.getContext('2d').drawImage(img, 0, 0);
             
-            // Count für Scatter (Pflanzen/Steine) oder Schwärme
             let count = 1;
             if (type === 'fish') {
                 if (Math.random() < 0.3) count = 3 + Math.floor(Math.random() * 4); 
@@ -1134,14 +1168,15 @@ try {
             for (let i = 0; i < count; i++) {
                 const mesh = buildFishGeometry(cv);
                 
-                const sizeVar = 0.4 + Math.random() * 0.8;
-                const baseScale = (type === 'fish') ? 0.5 : 0.4;
+                // Größe etwas angehoben für bessere Sichtbarkeit
+                const sizeVar = 0.6 + Math.random() * 0.8;
+                const baseScale = (type === 'fish') ? 0.8 : 0.6; 
                 mesh.scale.set(baseScale * sizeVar, baseScale * sizeVar, baseScale * sizeVar);
 
                 let baseX, baseZ, baseY, offsetX, offsetY;
 
                 if (type !== 'fish') {
-                    baseX = (Math.random() - 0.5) * 55; 
+                    baseX = (Math.random() - 0.5) * 40; 
                     baseZ = (Math.random() - 0.5) * 8; 
                     offsetX = 0; offsetY = 0;
                     
@@ -1154,12 +1189,11 @@ try {
                     }
                 } else {
                     if (i === 0) {
-                        baseX = (Math.random() - 0.5) * 30; 
-                        // Startposition der Fische etwas höher ansetzen
-                        baseY = (Math.random() - 0.5) * 5 + 2; 
+                        baseX = (Math.random() - 0.5) * 20; 
+                        baseY = (Math.random() - 0.5) * 3 + 2; 
                     }
-                    offsetX = (i - count / 2) * 1.5 + (Math.random() - 0.5);
-                    offsetY = (i - count / 2) * 0.8 + (Math.random() - 0.5);
+                    offsetX = (i - count / 2) * 1.2 + (Math.random() - 0.5);
+                    offsetY = (i - count / 2) * 0.6 + (Math.random() - 0.5);
                     baseZ = (Math.random() - 0.5) * 4; 
                 }
                 
@@ -1175,7 +1209,7 @@ try {
                     offsetY: offsetY,
                     speedX: 0.05 + Math.random() * 0.1,
                     speedY: 0.08 + Math.random() * 0.15,
-                    ampX: 5 + Math.random() * 10, 
+                    ampX: 4 + Math.random() * 6, 
                     ampY: 1 + Math.random() * 2,
                     phaseX: Math.random() * Math.PI * 2,
                     phaseY: Math.random() * Math.PI * 2
@@ -1207,13 +1241,11 @@ try {
 
         aquariumFish.forEach((f) => {
             if (f.type === 'fish') {
-                // NEU: Berechne die ungefähre Höhe des Fisches (für Kollision)
                 const px = f.baseX + f.offsetX + Math.sin(t * f.speedX + f.phaseX) * f.ampX;
                 let py = f.baseY + f.offsetY + Math.sin(t * f.speedY + f.phaseY) * f.ampY;
                 const pz = f.baseZ; 
                 
-                // KOLLISION MIT BODEN: Verhindert, dass Fische unter den Boden schwimmen
-                // Fische werden am Boden abgefangen (mit kleinem Puffer)
+                // Kollision mit dem Boden
                 const minY = groundY + 1.2; 
                 if (py < minY) py = minY;
 
@@ -1261,12 +1293,11 @@ try {
         if (!aquariumRenderer) return;
         const c = document.getElementById('aquariumContainer');
         const aspect = c.clientWidth / c.clientHeight;
-        const frustumSize = 20;
         
-        aquariumCamera.left = frustumSize * aspect / -2;
-        aquariumCamera.right = frustumSize * aspect / 2;
-        aquariumCamera.top = frustumSize / 2;
-        aquariumCamera.bottom = frustumSize / -2;
+        aquariumCamera.left = currentFrustumSize * aspect / -2;
+        aquariumCamera.right = currentFrustumSize * aspect / 2;
+        aquariumCamera.top = currentFrustumSize / 2;
+        aquariumCamera.bottom = currentFrustumSize / -2;
         aquariumCamera.updateProjectionMatrix();
         
         aquariumRenderer.setSize(c.clientWidth, c.clientHeight);
