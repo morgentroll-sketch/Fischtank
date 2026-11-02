@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Fisch-Ersteller & Aquarium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body { user-select: none; -webkit-user-select: none; font-family: system-ui, sans-serif; }
+        canvas { touch-action: none; }
+        .preview-fullscreen {
+            position: fixed !important; top: 0 !important; left: 0 !important;
+            width: 100vw !important; height: 100vh !important;
+            z-index: 9999 !important; border-radius: 0 !important;
+            background-color: #020617 !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
+
+    <header class="p-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-xl shadow-lg">🐠</div>
+            <div>
+                <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Fisch-Ersteller</h1>
+                <p class="text-xs text-slate-400">Malen → Gesicht → 3D Kissen</p>
+            </div>
+        </div>
+        <nav class="flex gap-2">
+            <button data-view="editor" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 text-white">Editor</button>
+            <button data-view="aquarium" class="nav-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-300">Aquarium</button>
+        </nav>
+    </header>
+
+    <!-- EDITOR VIEW -->
+    <main id="view-editor" class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-2xl flex flex-col gap-4">
+            <div class="flex justify-between items-center">
+                <h2 class="font-semibold text-cyan-300 flex items-center gap-2"><i class="fa-solid fa-paintbrush"></i> 1. Form & Muster</h2>
+                <span class="text-[10px] text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md hidden sm:block"><i class="fa-solid fa-lightbulb"></i> Tipp: Shift halten, um übers Gesicht zu malen</span>
+            </div>
+            
+            <div class="relative w-full aspect-square bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center" id="canvasContainer">
+                <canvas id="drawCanvas" width="512" height="512" class="absolute inset-0 w-full h-full cursor-crosshair z-0"></canvas>
+                
+                <div id="faceOverlay" class="absolute hidden border-2 border-dashed border-amber-400 rounded-full cursor-grab active:cursor-grabbing shadow-xl overflow-hidden z-10" style="width:110px;height:110px;top:170px;left:70px;">
+                    <img id="faceImg" src="" class="w-full h-full object-cover pointer-events-none" style="transform:translate(0px, 0px) rotate(0deg) scale(1); transform-origin: center;">
+                    <button id="removeFaceBtn" class="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center shadow-md"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <canvas id="overlayCanvas" width="512" height="512" class="absolute inset-0 w-full h-full pointer-events-none z-20"></canvas>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                <div class="flex items-center gap-2">
+                    <button class="color-btn w-7 h-7 rounded-full bg-amber-400 ring-4 ring-amber-400" data-color="#fbbf24"></button>
+                    <button class="color-btn w-7 h-7 rounded-full bg-rose-500" data-color="#f43f5e"></button>
+                    <button class="color-btn w-7 h-7 rounded-full bg-emerald-400" data-color="#34d399"></button>
+                    <button class="color-btn w-7 h-7 rounded-full bg-cyan-400" data-color="#38bdf8"></button>
+                    <button class="color-btn w-7 h-7 rounded-full bg-purple-500" data-color="#a855f7"></button>
+                    <button class="color-btn w-7 h-7 rounded-full bg-slate-100" data-color="#f8fafc"></button>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <input type="range" id="brushSize" min="6" max="40" value="18" class="w-16 accent-cyan-400">
+                    <button id="overFaceBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition"><i class="fa-solid fa-layer-group"></i> Über Gesicht</button>
+                    <button id="fillBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition"><i class="fa-solid fa-fill-drip"></i> Füllen</button>
+                    <button id="eraserBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition"><i class="fa-solid fa-eraser"></i> Radierer</button>
+                    <button id="clearCanvasBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/50 text-[11px] font-semibold text-slate-400 transition">Leeren</button>
+                </div>
+            </div>
+            <div class="flex flex-col gap-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-300 flex items-center gap-1.5"><i class="fa-solid fa-camera text-amber-400"></i> Gesicht</span>
+                    <label class="cursor-pointer bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs shadow-md flex items-center gap-1">
+                        <i class="fa-solid fa-upload"></i> Foto
+                        <input type="file" id="faceUpload" accept="image/*" class="hidden">
+                    </label>
+                </div>
+                
+                <div id="faceControls" class="grid grid-cols-2 gap-3 hidden pt-2 border-t border-slate-800/60">
+                    <div><label class="text-[10px] text-slate-400 block mb-1">Größe auf Fisch</label><input type="range" id="faceScale" min="60" max="220" value="110" class="w-full accent-amber-400"></div>
+                    <div><label class="text-[10px] text-slate-400 block mb-1">Drehung</label><input type="range" id="faceRotate" min="-180" max="180" value="0" class="w-full accent-amber-400"></div>
+                    <div><label class="text-[10px] text-slate-400 block mb-1">Farb-Blend</label><input type="range" id="faceBlend" min="0" max="100" value="40" class="w-full accent-amber-400"></div>
+                    <div><label class="text-[10px] text-slate-400 block mb-1">Zoom (Ausschnitt)</label><input type="range" id="faceCropZoom" min="1" max="4" step="0.05" value="1" class="w-full accent-amber-400"></div>
+                    <div><label class="text-[10px] text-slate-400 block mb-1">Bild X</label><input type="range" id="faceCropX" min="-50" max="50" value="0" class="w-full accent-amber-400"></div>
+                    <div><label class="text-[10px] text-slate-400 block mb-1">Bild Y</label><input type="range" id="faceCropY" min="-50" max="50" value="0" class="w-full accent-amber-400"></div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 pt-1 flex-wrap">
+                <span class="text-xs text-slate-400">Vorlagen:</span>
+                <button class="template-btn text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300" data-shape="fish1">🐟 Klassisch</button>
+                <button class="template-btn text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300" data-shape="fish2">🐡 Rund</button>
+                <button class="template-btn text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300" data-shape="whale">🐋 Breit</button>
+            </div>
+        </div>
+
+        <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-2xl flex flex-col gap-4">
+            <div class="flex justify-between items-center">
+                <h2 class="font-semibold text-cyan-300 flex items-center gap-2"><i class="fa-solid fa-cube"></i> 2. 3D Vorschau</h2>
+                <button id="fullscreenBtn" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded-lg flex items-center gap-1 border border-slate-700">
+                    <i class="fa-solid fa-expand"></i> Vollbild
+                </button>
+            </div>
+            <div id="previewContainer" class="w-full aspect-square bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden relative flex items-center justify-center">
+                <div id="debugInfo" class="absolute top-3 left-3 pointer-events-none bg-slate-900/80 backdrop-blur px-2.5 py-1 rounded-lg text-[11px] text-cyan-300 border border-slate-700/50 z-10"><i class="fa-solid fa-sparkles"></i> Bereit</div>
+            </div>
+            
+            <div class="flex items-center justify-between gap-4 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                <span class="text-xs font-medium text-slate-300 flex items-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-arrows-left-right text-amber-400"></i> Fisch-Dicke
+                </span>
+                <input type="range" id="fishWidth" min="5" max="100" value="25" class="w-full accent-amber-400">
+            </div>
+
+            <button id="update3dBtn" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white rounded-xl shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-rotate"></i> Neu berechnen</button>
+            <button id="saveFishBtn" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-teal-600 font-bold text-white shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-water"></i> Ins Aquarium freigeben</button>
+        </div>
+    </main>
+
+    <!-- AQUARIUM VIEW -->
+    <main id="view-aquarium" class="hidden flex-1 w-full relative">
+        <div id="aquariumContainer" class="w-full h-[calc(100vh-73px)] bg-gradient-to-b from-cyan-900 via-blue-900 to-slate-950 relative overflow-hidden"></div>
+        
+        <div class="absolute top-4 left-4 bg-slate-900/80 backdrop-blur px-3 py-2 rounded-lg text-xs text-cyan-300 border border-slate-700/50">
+            <i class="fa-solid fa-fish"></i> <span id="fishCount">0</span> Fische
+        </div>
+        <button id="clearAquariumBtn" class="absolute top-4 right-4 bg-red-600/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-semibold"><i class="fa-solid fa-trash"></i> Leeren</button>
+    </main>
+
+    <footer class="p-4 text-center text-xs text-slate-500 border-t border-slate-900">3D Fisch-Generator</footer>
+
+<script>
+try {
+    // ==========================================
+    // SUPABASE KONFIGURATION (Optional)
+    // ==========================================
+    // Wenn du Fische mit Freunden teilen willst, trage hier deine Daten ein:
+    const SUPABASE_URL = ''; // z.B. 'https://xyz.supabase.co'
+    const SUPABASE_ANON_KEY = ''sb_publishable_p4pdV2I2KkpO4Jrkyu4K7A_w2PRqwJu'
+
+    let useCloud = false;
+    let _supabase = null;
+
+    // Prüfen, ob gültige Daten eingetragen wurden
+    if (SUPABASE_URL && SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY) {
+        try {
+            const { createClient } = supabase;
+            _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            useCloud = true;
+            console.log("Cloud-Modus aktiviert.");
+        } catch(e) {
+            console.error("Supabase Fehler, falle zurück auf Lokal-Modus:", e);
+        }
+    } else {
+        console.log("Lokal-Modus aktiviert (Fische werden nur auf diesem Gerät gespeichert).");
+    }
+
+    // ==========================================
+    // 3D SETUP (VORSCHAU)
+    // ==========================================
+    const previewContainer = document.getElementById('previewContainer');
+    const previewScene = new THREE.Scene();
+    const previewCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+    previewCamera.position.set(0, 0, 4);
+    
+    const previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    previewContainer.appendChild(previewRenderer.domElement);
+
+    const orbitControls = new THREE.OrbitControls(previewCamera, previewRenderer.domElement);
+    orbitControls.enableDamping = true; orbitControls.dampingFactor = 0.05;
+
+    previewScene.add(new THREE.AmbientLight(0xffffff, 1.2));
+    const dirLight = new THREE.DirectionalLight(0x38bdf8, 2.0); dirLight.position.set(5, 5, 5); previewScene.add(dirLight);
+    const backLight = new THREE.DirectionalLight(0xf43f5e, 1.0); backLight.position.set(-5, -5, -5); previewScene.add(backLight);
+
+    let currentPreviewMesh = null;
+    let globalRotationY = 0; 
+    
+    const debugInfo = document.getElementById('debugInfo');
+    const fishWidthInput = document.getElementById('fishWidth');
+    
+    function resizePreview() {
+        const w = previewContainer.clientWidth;
+        const h = previewContainer.clientHeight;
+        previewCamera.aspect = w / h;
+        previewCamera.updateProjectionMatrix();
+        previewRenderer.setSize(w, h);
+    }
+    resizePreview();
+
+    function animatePreview() {
+        requestAnimationFrame(animatePreview);
+        globalRotationY += 0.005; 
+        if (currentPreviewMesh) {
+            currentPreviewMesh.rotation.y = globalRotationY;
+        }
+        orbitControls.update();
+        previewRenderer.render(previewScene, previewCamera);
+    }
+    animatePreview();
+
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    fullscreenBtn.addEventListener('click', () => {
+        previewContainer.classList.toggle('preview-fullscreen');
+        if (previewContainer.classList.contains('preview-fullscreen')) {
+            fullscreenBtn.innerHTML = '<i class="fa-solid fa-compress"></i> Verkleinern';
+            setTimeout(resizePreview, 50);
+        } else {
+            fullscreenBtn.innerHTML = '<i class="fa-solid fa-expand"></i> Vollbild';
+            setTimeout(resizePreview, 50);
+        }
+    });
+
+    // ==========================================
+    // KONTUR-ERKENNUNG
+    // ==========================================
+    function traceContour(imgData, width, height) {
+        const alpha = (x, y) => {
+            if (x < 0 || y < 0 || x >= width || y >= height) return 0;
+            return imgData[(y * width + x) * 4 + 3];
+        };
+
+        let startX = -1, startY = -1;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                if (alpha(x, y) > 25) { startX = x; startY = y; break; }
+            }
+            if (startX !== -1) break;
+        }
+        if (startX === -1) return null;
+
+        const path = [];
+        let px = startX, py = startY;
+        let prevX = px - 1, prevY = py; 
+        let steps = 0;
+        const maxSteps = width * height;
+
+        do {
+            path.push({ x: px, y: py });
+            const neighbors = [
+                {dx: -1, dy: -1}, {dx: 0, dy: -1}, {dx: 1, dy: -1},
+                {dx: 1, dy: 0},                   {dx: 1, dy: 1},
+                {dx: 0, dy: 1},  {dx: -1, dy: 1}, {dx: -1, dy: 0}
+            ];
+
+            let startIdx = 0;
+            for (let i = 0; i < 8; i++) {
+                if (px + neighbors[i].dx === prevX && py + neighbors[i].dy === prevY) {
+                    startIdx = i; break;
+                }
+            }
+
+            let nextPx = -1, nextPy = -1;
+            for (let i = 1; i <= 8; i++) {
+                const idx = (startIdx + i) % 8;
+                const nx = px + neighbors[idx].dx;
+                const ny = py + neighbors[idx].dy;
+                if (alpha(nx, ny) > 25) {
+                    nextPx = nx; nextPy = ny; break;
+                }
+            }
+
+            if (nextPx === -1) break;
+            prevX = px; prevY = py; px = nextPx; py = nextPy;
+            steps++;
+        } while ((px !== startX || py !== startY) && steps < maxSteps);
+
+        const cleanPath = [];
+        for (const p of path) {
+            if (cleanPath.length === 0 || p.x !== cleanPath[cleanPath.length - 1].x || p.y !== cleanPath[cleanPath.length - 1].y) {
+                cleanPath.push(p);
+            }
+        }
+        return cleanPath.length > 5 ? cleanPath : null;
+    }
+
+    // ==========================================
+    // MESH GENERIERUNG
+    // ==========================================
+    function buildFishGeometry(compositeCanvas) {
+        const W = 512, H = 512;
+        const ctx = compositeCanvas.getContext('2d');
+        const imgData = ctx.getImageData(0, 0, W, H).data;
+
+        const blurCanvas = document.createElement('canvas');
+        blurCanvas.width = W; blurCanvas.height = H;
+        const bCtx = blurCanvas.getContext('2d');
+        bCtx.fillStyle = 'black';
+        bCtx.fillRect(0, 0, W, H);
+        bCtx.drawImage(drawCanvas, 0, 0);
+
+        const hCanvas = document.createElement('canvas');
+        hCanvas.width = W; hCanvas.height = H;
+        const hCtx = hCanvas.getContext('2d');
+        hCtx.filter = 'blur(12px)'; 
+        hCtx.drawImage(blurCanvas, 0, 0);
+        const hData = hCtx.getImageData(0, 0, W, H).data;
+
+        const contourPoints = traceContour(imgData, W, H);
+        if (!contourPoints) return new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xff0000}));
+
+        const step = 1; 
+        const positions = [];
+        const uvs = [];
+        const indices = [];
+        const grid = {};
+
+        const cx = 256, cy = 256;
+        const scale = 150;
+        const thickness = parseInt(fishWidthInput.value) / 100;
+
+        for (let y = 0; y < H; y += step) {
+            for (let x = 0; x < W; x += step) {
+                if (imgData[(y * W + x) * 4 + 3] > 10) {
+                    let h = hData[(y * W + x) * 4] / 255.0;
+                    if (imgData[(y * W + x) * 4 + 3] < 50) h = 0;
+
+                    const z = h * thickness;
+
+                    const vF = positions.length / 3;
+                    positions.push((x - cx) / scale, -(y - cy) / scale, z);
+                    uvs.push(x / W, 1.0 - (y / H));
+
+                    const vB = positions.length / 3;
+                    positions.push((x - cx) / scale, -(y - cy) / scale, -z);
+                    uvs.push(x / W, 1.0 - (y / H));
+
+                    grid[`${x}_${y}`] = { vF, vB };
+                }
+            }
+        }
+
+        for (let y = 0; y < H; y += step) {
+            for (let x = 0; x < W; x += step) {
+                const cur = grid[`${x}_${y}`];
+                if (!cur) continue;
+
+                const right = grid[`${x + step}_${y}`];
+                const down = grid[`${x}_${y + step}`];
+                const downRight = grid[`${x + step}_${y + step}`];
+
+                if (right && down && downRight) {
+                    indices.push(cur.vF, right.vF, down.vF);
+                    indices.push(right.vF, downRight.vF, down.vF);
+                    indices.push(cur.vB, down.vB, right.vB);
+                    indices.push(right.vB, down.vB, downRight.vB);
+                }
+            }
+        }
+
+        for (let i = 0; i < contourPoints.length; i++) {
+            const p1 = contourPoints[i];
+            const p2 = contourPoints[(i + 1) % contourPoints.length];
+            const h1 = hData[(p1.y * W + p1.x) * 4] / 255;
+            const h2 = hData[(p2.y * W + p2.x) * 4] / 255;
+            const z1 = h1 * thickness * 0.9; 
+            const z2 = h2 * thickness * 0.9;
+
+            const vF1 = positions.length / 3;
+            positions.push((p1.x - cx) / scale, -(p1.y - cy) / scale, z1);
+            uvs.push(p1.x / W, 1.0 - (p1.y / H));
+
+            const vB1 = positions.length / 3;
+            positions.push((p1.x - cx) / scale, -(p1.y - cy) / scale, -z1);
+            uvs.push(p1.x / W, 1.0 - (p1.y / H));
+
+            const vF2 = positions.length / 3;
+            positions.push((p2.x - cx) / scale, -(p2.y - cy) / scale, z2);
+            uvs.push(p2.x / W, 1.0 - (p2.y / H));
+
+            const vB2 = positions.length / 3;
+            positions.push((p2.x - cx) / scale, -(p2.y - cy) / scale, -z2);
+            uvs.push(p2.x / W, 1.0 - (p2.y / H));
+
+            indices.push(vF1, vF2, vB1);
+            indices.push(vF2, vB2, vB1);
+        }
+
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+
+        geometry.userData.originalPositions = new Float32Array(positions);
+
+        const texture = new THREE.CanvasTexture(compositeCanvas);
+        texture.minFilter = THREE.LinearFilter; 
+        texture.magFilter = THREE.LinearFilter;
+        
+        const material = new THREE.MeshStandardMaterial({
+            map: texture, roughness: 0.4, metalness: 0.1, side: THREE.DoubleSide 
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.scale.set(2.0, 2.0, 2.0); 
+        
+        debugInfo.innerHTML = '<i class="fa-solid fa-check"></i> Mesh bereit!';
+        debugInfo.className = 'absolute top-3 left-3 pointer-events-none bg-slate-900/80 backdrop-blur px-2.5 py-1 rounded-lg text-[11px] text-emerald-400 border border-slate-700/50 z-10';
+        
+        return mesh;
+    }
+
+    // ==========================================
+    // CANVAS & DRAWING LOGIK
+    // ==========================================
+    const drawCanvas = document.getElementById('drawCanvas');
+    const drawCtx = drawCanvas.getContext('2d');
+    const overlayCanvas = document.getElementById('overlayCanvas');
+    const overlayCtx = overlayCanvas.getContext('2d');
+    
+    const faceUpload = document.getElementById('faceUpload');
+    const faceOverlay = document.getElementById('faceOverlay');
+    const faceImg = document.getElementById('faceImg');
+    const removeFaceBtn = document.getElementById('removeFaceBtn');
+    const faceControls = document.getElementById('faceControls');
+    const faceScale = document.getElementById('faceScale');
+    const faceRotate = document.getElementById('faceRotate');
+    const faceBlend = document.getElementById('faceBlend');
+    
+    const faceCropZoom = document.getElementById('faceCropZoom');
+    const faceCropX = document.getElementById('faceCropX');
+    const faceCropY = document.getElementById('faceCropY');
+
+    const fillBtn = document.getElementById('fillBtn');
+    const eraserBtn = document.getElementById('eraserBtn');
+    const overFaceBtn = document.getElementById('overFaceBtn');
+    const clearCanvasBtn = document.getElementById('clearCanvasBtn');
+    const brushSizeInput = document.getElementById('brushSize');
+    const update3dBtn = document.getElementById('update3dBtn');
+    const saveFishBtn = document.getElementById('saveFishBtn');
+
+    let currentColor = '#fbbf24';
+    let currentBrushSize = 18;
+    let isEraser = false;
+    let isFill = false;
+    let paintOverFaceMode = false;
+    let isShiftPressed = false;
+    let isDrawing = false;
+    let activeCtx = drawCtx;
+
+    function updatePointerEvents() {
+        if (isShiftPressed || paintOverFaceMode) {
+            faceOverlay.style.pointerEvents = 'none';
+            drawCanvas.style.cursor = 'crosshair';
+        } else {
+            faceOverlay.style.pointerEvents = 'auto';
+            drawCanvas.style.cursor = 'crosshair';
+        }
+    }
+
+    window.addEventListener('keydown', e => { 
+        if (e.key === 'Shift') { isShiftPressed = true; updatePointerEvents(); } 
+    });
+    window.addEventListener('keyup', e => { 
+        if (e.key === 'Shift') { isShiftPressed = false; updatePointerEvents(); } 
+    });
+
+    // --- FLOOD FILL ---
+    function hexToRgb(hex) {
+        var bigint = parseInt(hex.slice(1), 16);
+        return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+    }
+
+    function floodFill(ctx, startX, startY, fillColor, tolerance = 32) {
+        const width = ctx.canvas.width;
+        const height = ctx.canvas.height;
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const data = imageData.data;
+        const startPos = (startY * width + startX) * 4;
+        const startR = data[startPos];
+        const startG = data[startPos + 1];
+        const startB = data[startPos + 2];
+        const startA = data[startPos + 3];
+
+        const fillRgb = hexToRgb(fillColor);
+        const fillR = fillRgb[0], fillG = fillRgb[1], fillB = fillRgb[2], fillA = 255;
+
+        if (Math.abs(startR - fillR) <= tolerance && Math.abs(startG - fillG) <= tolerance && Math.abs(startB - fillB) <= tolerance && startA === 255) return;
+
+        const matchStartColor = (pos) => {
+            return (Math.abs(data[pos] - startR) <= tolerance &&
+                    Math.abs(data[pos + 1] - startG) <= tolerance &&
+                    Math.abs(data[pos + 2] - startB) <= tolerance &&
+                    Math.abs(data[pos + 3] - startA) <= tolerance);
+        };
+
+        const colorPixel = (pos) => {
+            data[pos] = fillR; data[pos + 1] = fillG; data[pos + 2] = fillB; data[pos + 3] = fillA;
+        };
+
+        const pixelStack = [[startX, startY]];
+
+        while (pixelStack.length > 0) {
+            const newPos = pixelStack.pop();
+            const x = newPos[0], y = newPos[1];
+            let pixelPos = (y * width + x) * 4;
+            
+            while (y-- >= 0 && matchStartColor(pixelPos)) { pixelPos -= width * 4; }
+            pixelPos += width * 4;
+            ++y;
+
+            let reachLeft = false, reachRight = false;
+
+            while (y++ < height - 1 && matchStartColor(pixelPos)) {
+                colorPixel(pixelPos);
+                if (x > 0) {
+                    if (matchStartColor(pixelPos - 4)) {
+                        if (!reachLeft) { pixelStack.push([x - 1, y]); reachLeft = true; }
+                    } else if (reachLeft) { reachLeft = false; }
+                }
+                if (x < width - 1) {
+                    if (matchStartColor(pixelPos + 4)) {
+                        if (!reachRight) { pixelStack.push([x + 1, y]); reachRight = true; }
+                    } else if (reachRight) { reachRight = false; }
+                }
+                pixelPos += width * 4;
+            }
+        }
+        ctx.putImageData(imageData, 0, 0);
+    }
+
+    // --- BILD ZUSAMMENBAUEN ---
+    function buildComposite() {
+        const comp = document.createElement('canvas');
+        comp.width = 512; comp.height = 512;
+        const c = comp.getContext('2d');
+        
+        c.drawImage(drawCanvas, 0, 0);
+
+        if (!faceOverlay.classList.contains('hidden') && faceImg.src) {
+            const canvasBox = drawCanvas.getBoundingClientRect();
+            const faceBox = faceOverlay.getBoundingClientRect();
+            const scaleFactor = 512 / canvasBox.width;
+            const relX = (faceBox.left - canvasBox.left) * scaleFactor;
+            const relY = (faceBox.top - canvasBox.top) * scaleFactor;
+            const relSize = faceBox.width * scaleFactor;
+            const r = relSize / 2;
+            
+            const rot = parseInt(faceRotate.value) || 0;
+            const blend = (parseInt(faceBlend.value) || 40) / 100;
+            const zoom = parseFloat(faceCropZoom.value) || 1;
+            const panX = parseFloat(faceCropX.value) || 0;
+            const panY = parseFloat(faceCropY.value) || 0;
+
+            const fc = document.createElement('canvas');
+            fc.width = relSize; fc.height = relSize;
+            const fx = fc.getContext('2d');
+
+            fx.save(); 
+            fx.beginPath(); 
+            fx.arc(r, r, r * 0.92, 0, Math.PI * 2); 
+            fx.clip();
+            
+            fx.translate(r, r);
+            fx.translate(panX, panY);
+            fx.rotate(rot * Math.PI / 180);
+            fx.scale(zoom, zoom);
+            fx.drawImage(faceImg, -r, -r, relSize, relSize);
+            fx.restore();
+
+            if (blend > 0) {
+                fx.save(); fx.globalCompositeOperation = 'soft-light';
+                fx.fillStyle = currentColor; fx.globalAlpha = blend * 0.8;
+                fx.fillRect(0, 0, relSize, relSize); fx.restore();
+            }
+
+            fx.save(); fx.globalCompositeOperation = 'destination-in';
+            const g = fx.createRadialGradient(r, r, r * 0.2, r, r, r * 0.95);
+            g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.7, 'rgba(0,0,0,0.85)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+            fx.fillStyle = g; fx.beginPath(); fx.arc(r, r, r, 0, Math.PI * 2); fx.fill(); fx.restore();
+
+            const mask = document.createElement('canvas');
+            mask.width = 512; mask.height = 512;
+            const mc = mask.getContext('2d');
+            mc.drawImage(fc, relX, relY);
+
+            const shapeMask = document.createElement('canvas');
+            shapeMask.width = 512; shapeMask.height = 512;
+            const sc = shapeMask.getContext('2d');
+            const src = drawCtx.getImageData(0, 0, 512, 512);
+            const out = sc.createImageData(512, 512);
+            for (let i = 0; i < src.data.length; i += 4) {
+                out.data[i] = 0; out.data[i+1] = 0; out.data[i+2] = 0;
+                out.data[i+3] = src.data[i+3] > 25 ? 255 : 0;
+            }
+            sc.putImageData(out, 0, 0);
+
+            mc.globalCompositeOperation = 'destination-in';
+            mc.drawImage(shapeMask, 0, 0);
+            c.drawImage(mask, 0, 0);
+        }
+
+        const overlayMask = document.createElement('canvas');
+        overlayMask.width = 512; overlayMask.height = 512;
+        const omc = overlayMask.getContext('2d');
+        omc.drawImage(overlayCanvas, 0, 0);
+        
+        omc.globalCompositeOperation = 'destination-in';
+        omc.drawImage(drawCanvas, 0, 0); 
+        
+        c.drawImage(overlayMask, 0, 0);
+
+        return comp;
+    }
+
+    let updateTimeout;
+    function update3DPreviewMesh(immediate = false) {
+        if (!immediate) {
+            clearTimeout(updateTimeout);
+            updateTimeout = setTimeout(() => { doUpdateMesh(); }, 150);
+        } else {
+            doUpdateMesh();
+        }
+    }
+
+    function doUpdateMesh() {
+        const composite = buildComposite();
+        if (currentPreviewMesh) {
+            previewScene.remove(currentPreviewMesh);
+            currentPreviewMesh.geometry.dispose();
+            currentPreviewMesh.material.dispose();
+        }
+        currentPreviewMesh = buildFishGeometry(composite);
+        currentPreviewMesh.rotation.y = globalRotationY;
+        previewScene.add(currentPreviewMesh);
+    }
+
+    update3dBtn.addEventListener('click', () => update3DPreviewMesh(true));
+    fishWidthInput.addEventListener('input', () => update3DPreviewMesh(false));
+
+    // ==========================================
+    // TOOL AUSWAHL
+    // ==========================================
+    document.querySelectorAll('.color-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-4', 'ring-amber-400'));
+            btn.classList.add('ring-4', 'ring-amber-400');
+            currentColor = btn.dataset.color; 
+            isEraser = false; isFill = false;
+            eraserBtn.classList.remove('bg-amber-500', 'text-slate-950');
+            fillBtn.classList.remove('bg-amber-500', 'text-slate-950');
+        });
+    });
+
+    eraserBtn.addEventListener('click', () => {
+        isEraser = !isEraser; isFill = false;
+        eraserBtn.classList.toggle('bg-amber-500', isEraser);
+        eraserBtn.classList.toggle('text-slate-950', isEraser);
+        fillBtn.classList.remove('bg-amber-500', 'text-slate-950');
+    });
+
+    fillBtn.addEventListener('click', () => {
+        isFill = !isFill; isEraser = false;
+        fillBtn.classList.toggle('bg-amber-500', isFill);
+        fillBtn.classList.toggle('text-slate-950', isFill);
+        eraserBtn.classList.remove('bg-amber-500', 'text-slate-950');
+    });
+
+    overFaceBtn.addEventListener('click', () => {
+        paintOverFaceMode = !paintOverFaceMode;
+        overFaceBtn.classList.toggle('bg-amber-500', paintOverFaceMode);
+        overFaceBtn.classList.toggle('text-slate-950', paintOverFaceMode);
+        updatePointerEvents();
+    });
+
+    clearCanvasBtn.addEventListener('click', () => {
+        drawCtx.clearRect(0, 0, 512, 512);
+        overlayCtx.clearRect(0, 0, 512, 512);
+        update3DPreviewMesh(true);
+    });
+
+    brushSizeInput.addEventListener('input', e => currentBrushSize = e.target.value);
+
+    function getCanvasPos(evt) {
+        const rect = drawCanvas.getBoundingClientRect();
+        const cx = evt.touches ? evt.touches[0].clientX : evt.clientX;
+        const cy = evt.touches ? evt.touches[0].clientY : evt.clientY;
+        return { x: (cx - rect.left) * (512 / rect.width), y: (cy - rect.top) * (512 / rect.height) };
+    }
+
+    function startDraw(e) {
+        if (isFill) {
+            e.preventDefault();
+            const p = getCanvasPos(e);
+            floodFill(drawCtx, Math.floor(p.x), Math.floor(p.y), currentColor);
+            update3DPreviewMesh(true);
+            return;
+        }
+
+        isDrawing = true; 
+        const p = getCanvasPos(e); 
+        
+        if (isShiftPressed || paintOverFaceMode) {
+            activeCtx = overlayCtx;
+        } else {
+            activeCtx = drawCtx;
+        }
+
+        activeCtx.beginPath(); 
+        activeCtx.moveTo(p.x, p.y); 
+    }
+    
+    function moveDraw(e) {
+        if (!isDrawing || isFill) return; 
+        e.preventDefault();
+        const p = getCanvasPos(e);
+        
+        activeCtx.lineWidth = currentBrushSize; 
+        activeCtx.lineCap = 'round'; 
+        activeCtx.lineJoin = 'round';
+        
+        if (isEraser) { 
+            activeCtx.globalCompositeOperation = 'destination-out'; 
+        } else { 
+            activeCtx.globalCompositeOperation = 'source-over'; 
+            activeCtx.strokeStyle = currentColor; 
+        }
+        
+        activeCtx.lineTo(p.x, p.y); 
+        activeCtx.stroke();
+    }
+    
+    function stopDraw() { 
+        if (isDrawing) { 
+            isDrawing = false; 
+            update3DPreviewMesh(true); 
+        } 
+    }
+
+    drawCanvas.addEventListener('mousedown', startDraw);
+    drawCanvas.addEventListener('mousemove', moveDraw);
+    window.addEventListener('mouseup', stopDraw);
+    drawCanvas.addEventListener('touchstart', startDraw, { passive: false });
+    drawCanvas.addEventListener('touchmove', moveDraw, { passive: false });
+    drawCanvas.addEventListener('touchend', stopDraw);
+
+    // Templates
+    document.querySelectorAll('.template-btn').forEach(btn => {
+        btn.addEventListener('click', () => drawTemplate(btn.dataset.shape));
+    });
+
+    function drawTemplate(shape) {
+        drawCtx.clearRect(0, 0, 512, 512);
+        overlayCtx.clearRect(0, 0, 512, 512);
+        drawCtx.save(); drawCtx.globalCompositeOperation = 'source-over'; drawCtx.fillStyle = currentColor;
+        if (shape === 'fish1') {
+            drawCtx.beginPath(); drawCtx.ellipse(230, 256, 120, 80, 0, 0, Math.PI * 2); drawCtx.fill();
+            drawCtx.beginPath(); drawCtx.moveTo(340, 256); drawCtx.lineTo(440, 180); drawCtx.lineTo(420, 256); drawCtx.lineTo(440, 332); drawCtx.closePath(); drawCtx.fill();
+        } else if (shape === 'fish2') {
+            drawCtx.beginPath(); drawCtx.arc(230, 256, 100, 0, Math.PI * 2); drawCtx.fill();
+            drawCtx.beginPath(); drawCtx.moveTo(320, 256); drawCtx.lineTo(430, 190); drawCtx.lineTo(430, 322); drawCtx.closePath(); drawCtx.fill();
+        } else {
+            drawCtx.beginPath(); drawCtx.ellipse(240, 260, 140, 75, 0, 0, Math.PI * 2); drawCtx.fill();
+            drawCtx.beginPath(); drawCtx.moveTo(370, 260); drawCtx.lineTo(440, 210); drawCtx.lineTo(420, 260); drawCtx.lineTo(440, 310); drawCtx.fill();
+        }
+        drawCtx.restore();
+        update3DPreviewMesh(true);
+    }
+
+    // ==========================================
+    // FACE UPLOAD & CROP
+    // ==========================================
+    faceUpload.addEventListener('change', e => {
+        const f = e.target.files[0]; if (!f) return;
+        const rd = new FileReader();
+        rd.onload = ev => {
+            faceImg.src = ev.target.result;
+            faceOverlay.classList.remove('hidden');
+            faceControls.classList.remove('hidden');
+            faceOverlay.style.left = '70px'; faceOverlay.style.top = '170px';
+            faceOverlay.style.width = '110px'; faceOverlay.style.height = '110px';
+            
+            faceScale.value = 110;
+            faceRotate.value = 0;
+            faceCropZoom.value = 1;
+            faceCropX.value = 0;
+            faceCropY.value = 0;
+            
+            updateFaceTransform();
+        };
+        rd.readAsDataURL(f);
+    });
+
+    function updateFaceTransform() {
+        const zoom = parseFloat(faceCropZoom.value);
+        const panX = parseFloat(faceCropX.value);
+        const panY = parseFloat(faceCropY.value);
+        const rot = parseFloat(faceRotate.value);
+
+        faceImg.style.transform = `translate(${panX}px, ${panY}px) rotate(${rot}deg) scale(${zoom})`;
+        update3DPreviewMesh(false);
+    }
+
+    removeFaceBtn.addEventListener('click', () => {
+        faceOverlay.classList.add('hidden'); 
+        faceControls.classList.add('hidden');
+        faceImg.src = ''; 
+        update3DPreviewMesh(true);
+    });
+
+    faceScale.addEventListener('input', e => {
+        faceOverlay.style.width = e.target.value + 'px';
+        faceOverlay.style.height = e.target.value + 'px';
+        update3DPreviewMesh(false);
+    });
+
+    faceRotate.addEventListener('input', updateFaceTransform);
+    faceCropZoom.addEventListener('input', updateFaceTransform);
+    faceCropX.addEventListener('input', updateFaceTransform);
+    faceCropY.addEventListener('input', updateFaceTransform);
+    faceBlend.addEventListener('input', () => update3DPreviewMesh(false));
+
+    let isDraggingFace = false, dX = 0, dY = 0;
+    function startFaceDrag(e) {
+        if (isShiftPressed || paintOverFaceMode) return;
+        if (e.target === removeFaceBtn || removeFaceBtn.contains(e.target)) return;
+        
+        isDraggingFace = true;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const r = faceOverlay.getBoundingClientRect();
+        dX = cx - r.left; dY = cy - r.top;
+    }
+    function moveFaceDrag(e) {
+        if (!isDraggingFace) return; e.preventDefault();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const pr = faceOverlay.parentElement.getBoundingClientRect();
+        let l = cx - pr.left - dX, t = cy - pr.top - dY;
+        l = Math.max(0, Math.min(pr.width - faceOverlay.offsetWidth, l));
+        t = Math.max(0, Math.min(pr.height - faceOverlay.offsetHeight, t));
+        faceOverlay.style.left = l + 'px'; faceOverlay.style.top = t + 'px';
+    }
+    function stopFaceDrag() { if (isDraggingFace) { isDraggingFace = false; update3DPreviewMesh(true); } }
+
+    faceOverlay.addEventListener('mousedown', startFaceDrag);
+    window.addEventListener('mousemove', moveFaceDrag);
+    window.addEventListener('mouseup', stopFaceDrag);
+    faceOverlay.addEventListener('touchstart', startFaceDrag, { passive: false });
+    window.addEventListener('touchmove', moveFaceDrag, { passive: false });
+    window.addEventListener('touchend', stopFaceDrag);
+
+    // ==========================================
+    // AQUARIUM LOGIK
+    // ==========================================
+    let aquariumRenderer = null, aquariumScene = null, aquariumCamera = null, aquariumFish = [], aquariumClock = null;
+    let bubbleParticles = null;
+    let realtimeSubscription = null;
+    
+    window.initAquarium = function() {
+        const container = document.getElementById('aquariumContainer');
+        if (!aquariumRenderer) {
+            aquariumScene = new THREE.Scene();
+            aquariumScene.fog = new THREE.FogExp2(0x0f172a, 0.08);
+            
+            aquariumCamera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
+            aquariumCamera.position.set(0, 0, 10);
+            
+            aquariumRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            aquariumRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            aquariumRenderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(aquariumRenderer.domElement);
+            
+            aquariumScene.add(new THREE.AmbientLight(0xffffff, 1.2));
+            const d = new THREE.DirectionalLight(0x88ccff, 2.0); d.position.set(3, 5, 5); aquariumScene.add(d);
+            const p = new THREE.PointLight(0x38bdf8, 1.5, 20); p.position.set(0, 2, 4); aquariumScene.add(p);
+            
+            const bubbleGeo = new THREE.BufferGeometry();
+            const bubbleCount = 150;
+            const bubblePositions = new Float32Array(bubbleCount * 3);
+            for (let i = 0; i < bubbleCount * 3; i += 3) {
+                bubblePositions[i] = (Math.random() - 0.5) * 20;
+                bubblePositions[i+1] = (Math.random() - 0.5) * 20;
+                bubblePositions[i+2] = (Math.random() - 0.5) * 10;
+            }
+            bubbleGeo.setAttribute('position', new THREE.BufferAttribute(bubblePositions, 3));
+            const bubbleMat = new THREE.PointsMaterial({ color: 0x88ccff, size: 0.15, transparent: true, opacity: 0.6 });
+            bubbleParticles = new THREE.Points(bubbleGeo, bubbleMat);
+            aquariumScene.add(bubbleParticles);
+
+            aquariumClock = new THREE.Clock();
+        }
+        
+        loadFishFromStorage();
+
+        if (useCloud && !realtimeSubscription) {
+            realtimeSubscription = _supabase
+                .channel('public:fishes')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fishes' }, payload => {
+                    addFishToAquarium(payload.new.image_data);
+                })
+                .subscribe();
+        }
+
+        animateAquarium();
+    };
+
+    function addFishToAquarium(base64Image) {
+        const img = new Image();
+        img.onload = () => {
+            const cv = document.createElement('canvas'); cv.width = 512; cv.height = 512;
+            cv.getContext('2d').drawImage(img, 0, 0);
+            
+            const mesh = buildFishGeometry(cv);
+            mesh.scale.set(1.2, 1.2, 1.2); 
+            mesh.position.set(0, 0, 0);
+            
+            const entry = { mesh, seed: Math.random() * 100, baseY: (Math.random() - 0.5) * 2 };
+            aquariumScene.add(mesh);
+            aquariumFish.push(entry);
+            document.getElementById('fishCount').textContent = aquariumFish.length;
+        };
+        img.src = base64Image;
+    }
+
+    function animateAquarium() {
+        requestAnimationFrame(animateAquarium);
+        if (!aquariumRenderer) return;
+        const t = aquariumClock.getElapsedTime();
+        
+        if (bubbleParticles) {
+            const positions = bubbleParticles.geometry.attributes.position.array;
+            for (let i = 1; i < positions.length; i += 3) {
+                positions[i] += 0.02; 
+                if (positions[i] > 10) positions[i] = -10; 
+            }
+            bubbleParticles.geometry.attributes.position.needsUpdate = true;
+        }
+
+        aquariumFish.forEach((f) => {
+            const px = Math.sin(t * 0.3 + f.seed) * 6;
+            const py = Math.sin(t * 0.5 + f.seed * 2) * 1.5 + f.baseY;
+            const pz = Math.cos(t * 0.2 + f.seed) * 3;
+            
+            f.mesh.position.set(px, py, pz);
+            
+            const vx = Math.cos(t * 0.3 + f.seed) * 0.3 * 6;
+            const vy = Math.cos(t * 0.5 + f.seed * 2) * 0.5 * 1.5;
+            
+            const targetRotY = vx > 0 ? 0 : Math.PI;
+            const targetRotZ = -vy * 0.4; 
+
+            f.mesh.rotation.y += (targetRotY - f.mesh.rotation.y) * 0.1;
+            f.mesh.rotation.z += (targetRotZ - f.mesh.rotation.z) * 0.1;
+
+            const posAttr = f.mesh.geometry.attributes.position;
+            const orig = f.mesh.geometry.userData.originalPositions;
+            
+            for (let i = 0; i < posAttr.count; i++) {
+                const ox = orig[i * 3];
+                const oy = orig[i * 3 + 1];
+                const oz = orig[i * 3 + 2];
+                
+                const tailWeight = Math.max(0, ox + 0.5); 
+                const wave = Math.sin(t * 8.0 + ox * 3.0) * 0.15 * tailWeight;
+                
+                posAttr.setXYZ(i, ox, oy, oz + wave);
+            }
+            posAttr.needsUpdate = true;
+        });
+        
+        aquariumRenderer.render(aquariumScene, aquariumCamera);
+    }
+
+    window.resizeAquarium = function() {
+        if (!aquariumRenderer) return;
+        const c = document.getElementById('aquariumContainer');
+        aquariumCamera.aspect = c.clientWidth / c.clientHeight;
+        aquariumCamera.updateProjectionMatrix();
+        aquariumRenderer.setSize(c.clientWidth, c.clientHeight);
+    };
+
+    async function loadFishFromStorage() {
+        aquariumFish.forEach(f => aquariumScene.remove(f.mesh));
+        aquariumFish = [];
+        
+        if (useCloud) {
+            // CLOUD MODUS
+            const { data, error } = await _supabase.from('fishes').select('*');
+            if (error) { console.error('Fehler beim Laden:', error); return; }
+            data.forEach(item => addFishToAquarium(item.image_data));
+        } else {
+            // LOKALER MODUS (Fallback)
+            const data = JSON.parse(localStorage.getItem('aquariumFish') || '[]');
+            data.forEach(item => addFishToAquarium(item.img));
+        }
+    }
+
+    saveFishBtn.addEventListener('click', async () => {
+        const comp = buildComposite();
+        const base64Image = comp.toDataURL('image/png');
+        
+        if (useCloud) {
+            // CLOUD MODUS
+            saveFishBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Lade hoch...';
+            const { error } = await _supabase.from('fishes').insert([{ image_data: base64Image }]);
+            if (error) {
+                saveFishBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Fehler!';
+                console.error(error);
+            } else {
+                saveFishBtn.innerHTML = '<i class="fa-solid fa-check"></i> Freigegeben!';
+            }
+        } else {
+            // LOKALER MODUS
+            const arr = JSON.parse(localStorage.getItem('aquariumFish') || '[]');
+            arr.push({ img: base64Image, ts: Date.now() });
+            localStorage.setItem('aquariumFish', JSON.stringify(arr));
+            saveFishBtn.innerHTML = '<i class="fa-solid fa-check"></i> Lokal gespeichert!';
+        }
+        
+        setTimeout(() => { saveFishBtn.innerHTML = '<i class="fa-solid fa-water"></i> Ins Aquarium freigeben'; }, 1500);
+    });
+
+    document.getElementById('clearAquariumBtn').addEventListener('click', async () => {
+        if (!confirm('Möchtest du wirklich alle Fische löschen?')) return;
+        
+        if (useCloud) {
+            await _supabase.from('fishes').delete().neq('id', 0);
+        } else {
+            localStorage.removeItem('aquariumFish');
+        }
+        
+        aquariumFish.forEach(f => aquariumScene.remove(f.mesh));
+        aquariumFish = [];
+        document.getElementById('fishCount').textContent = '0';
+    });
+
+    // ==========================================
+    // VIEW SWITCHING
+    // ==========================================
+    const editorView = document.getElementById('view-editor');
+    const aquariumView = document.getElementById('view-aquarium');
+
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = btn.dataset.view;
+            
+            if (target === 'editor') {
+                editorView.classList.remove('hidden');
+                aquariumView.classList.add('hidden');
+            } else {
+                editorView.classList.add('hidden');
+                aquariumView.classList.remove('hidden');
+                window.initAquarium();
+                setTimeout(window.resizeAquarium, 50);
+            }
+
+            document.querySelectorAll('.nav-btn').forEach(b => {
+                b.classList.remove('bg-cyan-600', 'text-white');
+                b.classList.add('bg-slate-800', 'text-slate-300');
+            });
+            btn.classList.remove('bg-slate-800', 'text-slate-300');
+            btn.classList.add('bg-cyan-600', 'text-white');
+        });
+    });
+
+    window.addEventListener('resize', () => {
+        if(editorView.classList.contains('hidden')) return;
+        resizePreview();
+        if (aquariumRenderer) { window.resizeAquarium(); }
+    });
+
+    drawTemplate('fish1');
+
+} catch (e) {
+    console.error(e);
+    document.body.innerHTML = `<div class="p-8 text-center text-red-500"><h1>Fehler beim Laden</h1><p>${e.message}</p></div>`;
+}
+</script>
+</body>
+</html>
