@@ -392,7 +392,8 @@ try {
         const contourPoints = traceContour(imgData, W, H);
         if (!contourPoints) return new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xff0000}));
 
-        const step = 1; 
+        // PERFORMANCE BOOST: step = 3 statt 1 (reduziert Dreiecke massiv)
+        const step = 3; 
         const positions = [];
         const uvs = [];
         const indices = [];
@@ -1120,29 +1121,32 @@ try {
             const cv = document.createElement('canvas'); cv.width = 512; cv.height = 512;
             cv.getContext('2d').drawImage(img, 0, 0);
             
-            // NEU: Bestimme zufällig, wie viele Objekte erstellt werden (für Schwärme/Duplikate)
+            // NEU: Count für Scatter (Pflanzen/Steine) oder Schwärme
             let count = 1;
             if (type === 'fish') {
-                // 30% Chance auf einen Schwarm (3-6 Fische)
                 if (Math.random() < 0.3) count = 3 + Math.floor(Math.random() * 4); 
             } else if (type === 'animal') {
-                // 30% Chance auf Duplikation (2-3 Tiere)
                 if (Math.random() < 0.3) count = 2 + Math.floor(Math.random() * 2);
+            } else if (type === 'plant' || type === 'stone') {
+                // VEGETATION SCATTER: Erzeuge 6 bis 14 Kopien für den Boden
+                count = 6 + Math.floor(Math.random() * 9);
             }
 
             for (let i = 0; i < count; i++) {
                 const mesh = buildFishGeometry(cv);
                 
-                // NEU: Zufällige Größenvariation (0.7 bis 1.3)
-                const sizeVar = 0.7 + Math.random() * 0.6;
+                // Größe variieren
+                const sizeVar = 0.4 + Math.random() * 0.8;
                 const baseScale = (type === 'fish') ? 0.5 : 0.4;
                 mesh.scale.set(baseScale * sizeVar, baseScale * sizeVar, baseScale * sizeVar);
 
                 let baseX, baseZ, baseY, offsetX, offsetY;
 
                 if (type !== 'fish') {
-                    baseX = (Math.random() - 0.5) * 36; 
-                    baseZ = 0; 
+                    // Breite Verteilung auf der X-Achse (gesamter Boden)
+                    baseX = (Math.random() - 0.5) * 55; 
+                    // Tiefenverteilung auf Z für 3D-Effekt
+                    baseZ = (Math.random() - 0.5) * 8; 
                     offsetX = 0; offsetY = 0;
                     
                     mesh.geometry.computeBoundingBox();
@@ -1153,20 +1157,12 @@ try {
                         mesh.rotation.y = Math.random() * Math.PI * 2;
                     }
                 } else {
-                    // Fische bekommen eine zufällige Startposition, aber bei Schwärmen bleiben sie zusammen
                     if (i === 0) {
                         baseX = (Math.random() - 0.5) * 30; 
                         baseY = (Math.random() - 0.5) * 6;
-                    } else {
-                        // Schwarm-Mitglieder positionieren sich um den ersten Fisch herum
-                        baseX = baseX;
-                        baseY = baseY;
                     }
-                    
-                    // Leichte Verschiebung im Schwarm
                     offsetX = (i - count / 2) * 1.5 + (Math.random() - 0.5);
                     offsetY = (i - count / 2) * 0.8 + (Math.random() - 0.5);
-                    
                     baseZ = (Math.random() - 0.5) * 4; 
                 }
                 
@@ -1180,11 +1176,11 @@ try {
                     name: name,
                     offsetX: offsetX,
                     offsetY: offsetY,
-                    // Für Schwärme teilen sich alle die gleichen Schwimmbewegungen
-                    speedX: 0.2 + Math.random() * 0.4,
-                    speedY: 0.3 + Math.random() * 0.4,
-                    ampX: 5 + Math.random() * 15, 
-                    ampY: 1 + Math.random() * 3,
+                    // GESCHWINDIGKEIT REDUZIERT
+                    speedX: 0.05 + Math.random() * 0.1,
+                    speedY: 0.08 + Math.random() * 0.15,
+                    ampX: 5 + Math.random() * 10, 
+                    ampY: 1 + Math.random() * 2,
                     phaseX: Math.random() * Math.PI * 2,
                     phaseY: Math.random() * Math.PI * 2
                 };
@@ -1215,7 +1211,6 @@ try {
 
         aquariumFish.forEach((f) => {
             if (f.type === 'fish') {
-                // NEU: Berücksichtigt offsetX und offsetY für Schwarmbildung
                 const px = f.baseX + f.offsetX + Math.sin(t * f.speedX + f.phaseX) * f.ampX;
                 const py = f.baseY + f.offsetY + Math.sin(t * f.speedY + f.phaseY) * f.ampY;
                 const pz = f.baseZ; 
@@ -1235,22 +1230,22 @@ try {
                     const oy = orig[i * 3 + 1];
                     const oz = orig[i * 3 + 2];
                     const tailWeight = Math.max(0, ox + 0.5); 
-                    const wave = Math.sin(t * 8.0 + f.seed + ox * 3.0) * 0.15 * tailWeight;
+                    // WELLE LANGSAMER: t * 3.0 statt t * 8.0
+                    const wave = Math.sin(t * 3.0 + f.seed + ox * 2.0) * 0.15 * tailWeight;
                     posAttr.setXYZ(i, ox, oy, oz + wave);
                 }
                 posAttr.needsUpdate = true;
 
             } else if (f.type === 'animal') {
-                // Berücksichtigt auch hier die Offset-Position für Duplikate
-                const px = f.baseX + f.offsetX + Math.sin(t * 0.5 + f.seed) * 4; 
+                const px = f.baseX + f.offsetX + Math.sin(t * 0.2 + f.seed) * 3; 
                 f.mesh.position.set(px, f.baseY, f.baseZ);
-                const vx = Math.cos(t * 0.5 + f.seed);
+                const vx = Math.cos(t * 0.2 + f.seed);
                 f.mesh.rotation.y = vx > 0 ? 0 : Math.PI;
                 f.mesh.rotation.z = 0;
                 
             } else if (f.type === 'plant') {
                 f.mesh.position.set(f.baseX, f.baseY, f.baseZ);
-                f.mesh.rotation.z = Math.sin(t * 2 + f.seed) * 0.15; 
+                f.mesh.rotation.z = Math.sin(t * 1.5 + f.seed) * 0.08; 
                 
             } else if (f.type === 'stone') {
                 f.mesh.position.set(f.baseX, f.baseY, f.baseZ);
@@ -1414,7 +1409,6 @@ try {
 
         detailScene = new THREE.Scene();
         
-        // NEU: Perspektiv-Kamera für das Modal (besseres 3D-Gefühl beim Drehen)
         const aspect = container.clientWidth / container.clientHeight || 1;
         detailCamera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
         detailCamera.position.set(0, 0, 6); 
@@ -1441,7 +1435,7 @@ try {
             }
 
             detailMesh = new THREE.Mesh(clonedGeo, clonedMat);
-            detailMesh.scale.set(3, 3, 3); // Im Modal etwas größer
+            detailMesh.scale.set(3, 3, 3); 
             detailMesh.rotation.set(0, 0, 0); 
             detailMesh.position.set(0, 0, 0);
             detailScene.add(detailMesh);
@@ -1462,7 +1456,7 @@ try {
             controls.enableDamping = true;
             controls.enableRotate = true; 
             controls.autoRotate = false; 
-            controls.target.set(0, 0, 0); // Wichtig: Target in die Mitte setzen
+            controls.target.set(0, 0, 0); 
 
             function animateDetail() {
                 detailAnimFrame = requestAnimationFrame(animateDetail);
