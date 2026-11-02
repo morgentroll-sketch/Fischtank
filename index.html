@@ -1035,7 +1035,6 @@ try {
 
             aquariumClock = new THREE.Clock();
 
-            // Raycaster für Klicks
             aquariumRenderer.domElement.addEventListener('pointerdown', onAquariumClick);
         }
         
@@ -1065,12 +1064,10 @@ try {
             let baseX, baseZ, baseY;
 
             if (type !== 'fish') {
-                // Objekte auf den Boden setzen
                 mesh.scale.set(0.8, 0.8, 0.8);
                 baseX = (Math.random() - 0.5) * 20; 
                 baseZ = (Math.random() - 0.5) * 10 - 2; 
                 
-                // Höhe berechnen (damit sie EXAKT auf dem Boden sitzen)
                 mesh.geometry.computeBoundingBox();
                 const h = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
                 baseY = groundY + (h * mesh.scale.y) / 2;
@@ -1092,7 +1089,6 @@ try {
                 baseZ: baseZ,
                 type: type,
                 name: name,
-                // Neue Variablen für individuelle Schwimmbahnen
                 speedX: 0.2 + Math.random() * 0.3,
                 speedY: 0.3 + Math.random() * 0.4,
                 speedZ: 0.2 + Math.random() * 0.3,
@@ -1103,7 +1099,7 @@ try {
                 phaseY: Math.random() * Math.PI * 2,
                 phaseZ: Math.random() * Math.PI * 2
             };
-            mesh.userData = entry; // Speichere Daten im Mesh für Klick-Erkennung
+            mesh.userData = entry; 
             mesh.position.set(baseX, baseY, baseZ);
             
             aquariumScene.add(mesh);
@@ -1129,14 +1125,12 @@ try {
 
         aquariumFish.forEach((f) => {
             if (f.type === 'fish') {
-                // Komplett individuelle Schwimmbahnen (Lissajous-Figuren)
                 const px = Math.sin(t * f.speedX + f.phaseX) * f.ampX;
                 const py = Math.sin(t * f.speedY + f.phaseY) * f.ampY + f.baseY;
                 const pz = Math.cos(t * f.speedZ + f.phaseZ) * f.ampZ;
                 
                 f.mesh.position.set(px, py, pz);
                 
-                // Richtung berechnen für die Drehung
                 const vx = Math.cos(t * f.speedX + f.phaseX) * f.ampX * f.speedX;
                 const vy = Math.cos(t * f.speedY + f.phaseY) * f.ampY * f.speedY;
                 
@@ -1146,7 +1140,6 @@ try {
                 f.mesh.rotation.y += (targetRotY - f.mesh.rotation.y) * 0.1;
                 f.mesh.rotation.z += (targetRotZ - f.mesh.rotation.z) * 0.1;
 
-                // Wellenbewegung
                 const posAttr = f.mesh.geometry.attributes.position;
                 const orig = f.mesh.geometry.userData.originalPositions;
                 for (let i = 0; i < posAttr.count; i++) {
@@ -1193,7 +1186,11 @@ try {
         
         if (useCloud) {
             const { data, error } = await _supabase.from('fishes').select('*');
-            if (error) { console.error('Fehler beim Laden:', error); return; }
+            if (error) { 
+                console.error('Fehler beim Laden:', error); 
+                alert("Fehler beim Laden aus der Datenbank: " + error.message + "\nHast du die SQL-Befehle (name-Spalte) ausgeführt?");
+                return; 
+            }
             data.forEach(item => addFishToAquarium(item.image_data, item.type || 'fish', item.name || 'Unbenannt'));
         } else {
             const data = JSON.parse(localStorage.getItem('aquariumFish') || '[]');
@@ -1212,6 +1209,7 @@ try {
             const { error } = await _supabase.from('fishes').insert([{ image_data: base64Image, type: selectedType, name: objectName }]);
             if (error) {
                 saveFishBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Fehler!';
+                alert("Fehler beim Speichern in der Datenbank!\n\nGrund: " + error.message + "\n\nHast du in Supabase die Spalte 'name' hinzugefügt?\nSQL: ALTER TABLE fishes ADD COLUMN name text;");
                 console.error(error);
             } else {
                 saveFishBtn.innerHTML = '<i class="fa-solid fa-check"></i> Freigegeben!';
@@ -1275,7 +1273,6 @@ try {
     }
 
     function openDetailModal(data) {
-        // Daten in Modal eintragen
         modalName.textContent = data.name;
         modalCategory.textContent = data.type === 'fish' ? 'Fisch' : data.type === 'stone' ? 'Stein' : data.type === 'plant' ? 'Pflanze' : 'Tier';
         
@@ -1284,7 +1281,6 @@ try {
         else if(data.type === 'plant') modalCategoryIcon.innerHTML = '<i class="fa-solid fa-leaf"></i>';
         else modalCategoryIcon.innerHTML = '<i class="fa-solid fa-spider"></i>';
 
-        // Modal anzeigen
         detailModal.classList.remove('hidden');
         detailModal.classList.add('flex');
         setTimeout(() => {
@@ -1292,6 +1288,7 @@ try {
             modalContent.classList.remove('scale-95');
         }, 10);
 
+        // Übergebe die Daten des Meshes an die 3D-Funktion
         initDetail3D(data.mesh);
     }
 
@@ -1301,7 +1298,6 @@ try {
         setTimeout(() => {
             detailModal.classList.remove('flex');
             detailModal.classList.add('hidden');
-            // 3D Cleanup
             if(detailAnimFrame) cancelAnimationFrame(detailAnimFrame);
             if(detailRenderer) {
                 detailRenderer.dispose();
@@ -1321,30 +1317,47 @@ try {
 
     function initDetail3D(sourceMesh) {
         const container = document.getElementById('detail3dContainer');
-        
+        container.innerHTML = ''; // Alten Canvas entfernen
+
         detailScene = new THREE.Scene();
         detailCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-        detailCamera.position.set(0, 0, 4);
+        detailCamera.position.set(0, 0, 4); // Kamera etwas weiter weg
         
         detailRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         detailRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        detailRenderer.setSize(container.clientWidth, container.clientHeight);
+        
+        // WICHTIG: Warte einen kleinen Moment, bis das Modal sichtbar ist, 
+        // damit die Größe (clientWidth) nicht 0 ist.
+        setTimeout(() => {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            detailCamera.aspect = w / h;
+            detailCamera.updateProjectionMatrix();
+            detailRenderer.setSize(w, h);
+        }, 50);
+
         container.appendChild(detailRenderer.domElement);
 
-        detailScene.add(new THREE.AmbientLight(0xffffff, 1.2));
-        const d = new THREE.DirectionalLight(0x38bdf8, 2.0); d.position.set(5, 5, 5); detailScene.add(d);
-        const p = new THREE.DirectionalLight(0xf43f5e, 1.0); p.position.set(-5, -5, -5); detailScene.add(p);
+        detailScene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        const d = new THREE.DirectionalLight(0xffffff, 2.0); d.position.set(5, 5, 5); detailScene.add(d);
+        const p = new THREE.DirectionalLight(0x88ccff, 1.0); p.position.set(-5, -5, -5); detailScene.add(p);
 
-        // Mesh klonen (damit das Original im Aquarium weiterlebt)
-        detailMesh = sourceMesh.clone();
-        detailMesh.position.set(0,0,0);
-        detailMesh.rotation.set(0,0,0);
-        detailMesh.scale.set(2, 2, 2); // Etwas größer für das Modal
+        // DEEP CLONE: Kopiere das Mesh, damit das Original im Aquarium nicht gelöscht wird
+        // wenn wir das Modal schließen.
+        const clonedGeo = sourceMesh.geometry.clone();
+        const clonedMat = sourceMesh.material.clone();
+        
+        detailMesh = new THREE.Mesh(clonedGeo, clonedMat);
+        detailMesh.scale.set(2.5, 2.5, 2.5); // Skalierung für das Modal
+        detailMesh.rotation.set(0, 0, 0); // Zurück in die Ausgangsposition drehen
+        detailMesh.position.set(0, 0, 0);
+        
         detailScene.add(detailMesh);
 
         const controls = new THREE.OrbitControls(detailCamera, detailRenderer.domElement);
         controls.enableDamping = true;
         controls.autoRotate = true; // Sanftes Drehen
+        controls.autoRotateSpeed = 2.0;
 
         function animateDetail() {
             detailAnimFrame = requestAnimationFrame(animateDetail);
