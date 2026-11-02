@@ -19,6 +19,19 @@
             z-index: 9999 !important; border-radius: 0 !important;
             background-color: #020617 !important;
         }
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            padding: 0;
+            background: transparent;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid #475569;
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-x-hidden">
@@ -37,7 +50,6 @@
         </nav>
     </header>
 
-    <!-- EDITOR VIEW -->
     <main id="view-editor" class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         <div class="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-2xl flex flex-col gap-4">
             <div class="flex justify-between items-center">
@@ -56,23 +68,40 @@
                 <canvas id="overlayCanvas" width="512" height="512" class="absolute inset-0 w-full h-full pointer-events-none z-20"></canvas>
             </div>
 
-            <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-                <div class="flex items-center gap-2">
-                    <button class="color-btn w-7 h-7 rounded-full bg-amber-400 ring-4 ring-amber-400" data-color="#fbbf24"></button>
-                    <button class="color-btn w-7 h-7 rounded-full bg-rose-500" data-color="#f43f5e"></button>
-                    <button class="color-btn w-7 h-7 rounded-full bg-emerald-400" data-color="#34d399"></button>
-                    <button class="color-btn w-7 h-7 rounded-full bg-cyan-400" data-color="#38bdf8"></button>
-                    <button class="color-btn w-7 h-7 rounded-full bg-purple-500" data-color="#a855f7"></button>
-                    <button class="color-btn w-7 h-7 rounded-full bg-slate-100" data-color="#f8fafc"></button>
+            <div class="flex flex-col gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <button class="color-btn w-7 h-7 rounded-full bg-amber-400 ring-4 ring-amber-400" data-color="#fbbf24"></button>
+                        <button class="color-btn w-7 h-7 rounded-full bg-rose-500" data-color="#f43f5e"></button>
+                        <button class="color-btn w-7 h-7 rounded-full bg-emerald-400" data-color="#34d399"></button>
+                        <button class="color-btn w-7 h-7 rounded-full bg-cyan-400" data-color="#38bdf8"></button>
+                        <button class="color-btn w-7 h-7 rounded-full bg-purple-500" data-color="#a855f7"></button>
+                        <button class="color-btn w-7 h-7 rounded-full bg-slate-100" data-color="#f8fafc"></button>
+                        
+                        <div class="relative w-7 h-7 ml-1">
+                            <input type="color" id="colorPicker" class="w-8 h-8 absolute -top-0.5 -left-0.5 cursor-pointer rounded-full" value="#fbbf24">
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <select id="brushType" class="bg-slate-800 text-xs text-slate-300 rounded-lg p-1.5 border border-slate-700 outline-none">
+                            <option value="normal">Standard Pinsel</option>
+                            <option value="marker">Marker</option>
+                            <option value="spray">Sprühdose</option>
+                            <option value="neon">Neon</option>
+                        </select>
+                        <input type="range" id="brushSize" min="6" max="40" value="18" class="w-16 accent-cyan-400">
+                    </div>
                 </div>
-                <div class="flex items-center gap-2 flex-wrap">
-                    <input type="range" id="brushSize" min="6" max="40" value="18" class="w-16 accent-cyan-400">
+
+                <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-800/60">
                     <button id="overFaceBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition"><i class="fa-solid fa-layer-group"></i> Über Gesicht</button>
                     <button id="fillBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition"><i class="fa-solid fa-fill-drip"></i> Füllen</button>
                     <button id="eraserBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition"><i class="fa-solid fa-eraser"></i> Radierer</button>
-                    <button id="clearCanvasBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/50 text-[11px] font-semibold text-slate-400 transition">Leeren</button>
+                    <button id="clearCanvasBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-900/50 text-[11px] font-semibold text-slate-400 transition ml-auto">Leeren</button>
                 </div>
             </div>
+
             <div class="flex flex-col gap-3 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-medium text-slate-300 flex items-center gap-1.5"><i class="fa-solid fa-camera text-amber-400"></i> Gesicht</span>
@@ -117,10 +146,9 @@
                 <input type="range" id="fishWidth" min="5" max="100" value="25" class="w-full accent-amber-400">
             </div>
 
-            <!-- NEU: Objekt-Typ Auswahl -->
             <div class="flex flex-col gap-2 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
                 <label class="text-xs font-medium text-slate-300">Was hast du gemalt?</label>
-                <select id="objectType" class="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2">
+                <select id="objectType" class="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none">
                     <option value="fish">🐟 Fisch (schwimmt)</option>
                     <option value="animal">🦀 Tier (läuft am Boden)</option>
                     <option value="plant">🌿 Pflanze (wabbelt am Boden)</option>
@@ -133,7 +161,6 @@
         </div>
     </main>
 
-    <!-- AQUARIUM VIEW -->
     <main id="view-aquarium" class="hidden flex-1 w-full relative">
         <div id="aquariumContainer" class="w-full h-[calc(100vh-73px)] bg-gradient-to-b from-cyan-900 via-blue-900 to-slate-950 relative overflow-hidden"></div>
         
@@ -162,7 +189,7 @@ try {
             _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             useCloud = true;
         } catch(e) {
-            console.error("Supabase Fehler, falle zurück auf Lokal-Modus:", e);
+            console.error("Supabase Fehler:", e);
         }
     }
 
@@ -224,7 +251,7 @@ try {
     });
 
     // ==========================================
-    // KONTUR-ERKENNUNG
+    // KONTUR-ERKENNUNG & MESH
     // ==========================================
     function traceContour(imgData, width, height) {
         const alpha = (x, y) => {
@@ -286,9 +313,6 @@ try {
         return cleanPath.length > 5 ? cleanPath : null;
     }
 
-    // ==========================================
-    // MESH GENERIERUNG
-    // ==========================================
     function buildFishGeometry(compositeCanvas) {
         const W = 512, H = 512;
         const ctx = compositeCanvas.getContext('2d');
@@ -421,6 +445,9 @@ try {
     const overlayCanvas = document.getElementById('overlayCanvas');
     const overlayCtx = overlayCanvas.getContext('2d');
     
+    const colorPicker = document.getElementById('colorPicker');
+    const brushTypeSelect = document.getElementById('brushType');
+
     const faceUpload = document.getElementById('faceUpload');
     const faceOverlay = document.getElementById('faceOverlay');
     const faceImg = document.getElementById('faceImg');
@@ -444,12 +471,23 @@ try {
 
     let currentColor = '#fbbf24';
     let currentBrushSize = 18;
+    let currentBrushType = 'normal';
     let isEraser = false;
     let isFill = false;
     let paintOverFaceMode = false;
     let isShiftPressed = false;
     let isDrawing = false;
     let activeCtx = drawCtx;
+
+    colorPicker.addEventListener('input', (e) => {
+        currentColor = e.target.value;
+        document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-4', 'ring-amber-400'));
+        colorPicker.classList.add('ring-4', 'ring-cyan-400');
+    });
+
+    brushTypeSelect.addEventListener('change', (e) => {
+        currentBrushType = e.target.value;
+    });
 
     function updatePointerEvents() {
         if (isShiftPressed || paintOverFaceMode) {
@@ -468,17 +506,17 @@ try {
         if (e.key === 'Shift') { isShiftPressed = false; updatePointerEvents(); } 
     });
 
-    // --- FLOOD FILL ---
     function hexToRgb(hex) {
         var bigint = parseInt(hex.slice(1), 16);
         return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
     }
 
-    function floodFill(ctx, startX, startY, fillColor, tolerance = 32) {
+    function floodFill(ctx, startX, startY, fillColor, tolerance = 50) {
         const width = ctx.canvas.width;
         const height = ctx.canvas.height;
         const imageData = ctx.getImageData(0, 0, width, height);
         const data = imageData.data;
+        
         const startPos = (startY * width + startX) * 4;
         const startR = data[startPos];
         const startG = data[startPos + 1];
@@ -491,6 +529,7 @@ try {
         if (Math.abs(startR - fillR) <= tolerance && Math.abs(startG - fillG) <= tolerance && Math.abs(startB - fillB) <= tolerance && startA === 255) return;
 
         const matchStartColor = (pos) => {
+            if (startA === 0) return data[pos + 3] < 50;
             return (Math.abs(data[pos] - startR) <= tolerance &&
                     Math.abs(data[pos + 1] - startG) <= tolerance &&
                     Math.abs(data[pos + 2] - startB) <= tolerance &&
@@ -532,7 +571,6 @@ try {
         ctx.putImageData(imageData, 0, 0);
     }
 
-    // --- BILD ZUSAMMENBAUEN ---
     function buildComposite() {
         const comp = document.createElement('canvas');
         comp.width = 512; comp.height = 512;
@@ -641,13 +679,11 @@ try {
     update3dBtn.addEventListener('click', () => update3DPreviewMesh(true));
     fishWidthInput.addEventListener('input', () => update3DPreviewMesh(false));
 
-    // ==========================================
-    // TOOL AUSWAHL
-    // ==========================================
     document.querySelectorAll('.color-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-4', 'ring-amber-400'));
             btn.classList.add('ring-4', 'ring-amber-400');
+            colorPicker.classList.remove('ring-4', 'ring-cyan-400');
             currentColor = btn.dataset.color; 
             isEraser = false; isFill = false;
             eraserBtn.classList.remove('bg-amber-500', 'text-slate-950');
@@ -692,16 +728,17 @@ try {
     }
 
     function startDraw(e) {
+        const p = getCanvasPos(e);
+        
         if (isFill) {
             e.preventDefault();
-            const p = getCanvasPos(e);
-            floodFill(drawCtx, Math.floor(p.x), Math.floor(p.y), currentColor);
+            let targetCtx = (isShiftPressed || paintOverFaceMode) ? overlayCtx : drawCtx;
+            floodFill(targetCtx, Math.floor(p.x), Math.floor(p.y), currentColor);
             update3DPreviewMesh(true);
             return;
         }
 
         isDrawing = true; 
-        const p = getCanvasPos(e); 
         
         if (isShiftPressed || paintOverFaceMode) {
             activeCtx = overlayCtx;
@@ -709,6 +746,7 @@ try {
             activeCtx = drawCtx;
         }
 
+        activeCtx.shadowBlur = 0;
         activeCtx.beginPath(); 
         activeCtx.moveTo(p.x, p.y); 
     }
@@ -719,23 +757,51 @@ try {
         const p = getCanvasPos(e);
         
         activeCtx.lineWidth = currentBrushSize; 
-        activeCtx.lineCap = 'round'; 
-        activeCtx.lineJoin = 'round';
+        
+        if (currentBrushType === 'marker') {
+            activeCtx.lineCap = 'square';
+            activeCtx.lineJoin = 'miter';
+        } else {
+            activeCtx.lineCap = 'round';
+            activeCtx.lineJoin = 'round';
+        }
         
         if (isEraser) { 
             activeCtx.globalCompositeOperation = 'destination-out'; 
+            activeCtx.shadowBlur = 0;
         } else { 
             activeCtx.globalCompositeOperation = 'source-over'; 
             activeCtx.strokeStyle = currentColor; 
+            activeCtx.fillStyle = currentColor;
         }
-        
-        activeCtx.lineTo(p.x, p.y); 
-        activeCtx.stroke();
+
+        if (currentBrushType === 'spray' && !isEraser) {
+            const density = Math.floor(currentBrushSize * 1.5);
+            const radius = currentBrushSize / 2;
+            for (let i = 0; i < density; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = Math.random() * radius;
+                const offsetX = Math.cos(angle) * r;
+                const offsetY = Math.sin(angle) * r;
+                activeCtx.beginPath();
+                activeCtx.arc(p.x + offsetX, p.y + offsetY, Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
+                activeCtx.fill();
+            }
+        } else if (currentBrushType === 'neon' && !isEraser) {
+            activeCtx.shadowBlur = 20;
+            activeCtx.shadowColor = currentColor;
+            activeCtx.lineTo(p.x, p.y); 
+            activeCtx.stroke();
+        } else {
+            activeCtx.lineTo(p.x, p.y); 
+            activeCtx.stroke();
+        }
     }
     
     function stopDraw() { 
         if (isDrawing) { 
             isDrawing = false; 
+            activeCtx.shadowBlur = 0;
             update3DPreviewMesh(true); 
         } 
     }
@@ -747,7 +813,6 @@ try {
     drawCanvas.addEventListener('touchmove', moveDraw, { passive: false });
     drawCanvas.addEventListener('touchend', stopDraw);
 
-    // Templates
     document.querySelectorAll('.template-btn').forEach(btn => {
         btn.addEventListener('click', () => drawTemplate(btn.dataset.shape));
     });
@@ -770,9 +835,6 @@ try {
         update3DPreviewMesh(true);
     }
 
-    // ==========================================
-    // FACE UPLOAD & CROP
-    // ==========================================
     faceUpload.addEventListener('change', e => {
         const f = e.target.files[0]; if (!f) return;
         const rd = new FileReader();
@@ -859,7 +921,7 @@ try {
     let aquariumRenderer = null, aquariumScene = null, aquariumCamera = null, aquariumFish = [], aquariumClock = null;
     let bubbleParticles = null;
     let realtimeSubscription = null;
-    let groundY = -3.5; // Höhe des Meeresbodens
+    let groundY = -3.5; 
     
     window.initAquarium = function() {
         const container = document.getElementById('aquariumContainer');
@@ -875,12 +937,10 @@ try {
             aquariumRenderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(aquariumRenderer.domElement);
             
-            // Licht
             aquariumScene.add(new THREE.AmbientLight(0xffffff, 1.2));
             const d = new THREE.DirectionalLight(0x88ccff, 2.0); d.position.set(3, 5, 5); aquariumScene.add(d);
             const p = new THREE.PointLight(0x38bdf8, 1.5, 20); p.position.set(0, 2, 4); aquariumScene.add(p);
             
-            // Sandboden
             const groundGeo = new THREE.PlaneGeometry(30, 20);
             const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 1 });
             const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -889,7 +949,6 @@ try {
             ground.position.z = -2;
             aquariumScene.add(ground);
             
-            // Blasen
             const bubbleGeo = new THREE.BufferGeometry();
             const bubbleCount = 150;
             const bubblePositions = new Float32Array(bubbleCount * 3);
@@ -930,16 +989,31 @@ try {
             mesh.scale.set(1.2, 1.2, 1.2); 
             mesh.position.set(0, 0, 0);
             
-            // Wenn es kein Fisch ist, etwas kleiner skalieren
+            let baseX, baseZ, baseY;
+
             if (type === 'stone' || type === 'plant' || type === 'animal') {
                 mesh.scale.set(0.8, 0.8, 0.8);
+                // Zufällige Verteilung auf dem Boden (X und Z Achse)
+                baseX = (Math.random() - 0.5) * 20; // Breite
+                baseZ = (Math.random() - 0.5) * 10 - 2; // Tiefe (etwas nach hinten verschoben)
+                baseY = groundY + 0.4; // Exakt auf dem Boden aufsitzen
+                
+                // Zufällige Drehung, damit es natürlicher aussieht
+                if (type === 'stone' || type === 'plant') {
+                    mesh.rotation.y = Math.random() * Math.PI * 2;
+                }
+            } else {
+                baseX = 0; // Fische kriegen ihre Position dynamisch in der Animation
+                baseZ = 0;
+                baseY = (Math.random() - 0.5) * 2;
             }
             
             const entry = { 
                 mesh, 
                 seed: Math.random() * 100, 
-                baseY: type === 'fish' ? (Math.random() - 0.5) * 2 : groundY,
-                baseX: (Math.random() - 0.5) * 8, // Zufällige Startposition am Boden
+                baseY: baseY,
+                baseX: baseX,
+                baseZ: baseZ,
                 type: type 
             };
             aquariumScene.add(mesh);
@@ -965,7 +1039,6 @@ try {
 
         aquariumFish.forEach((f) => {
             if (f.type === 'fish') {
-                // FISCH LOGIK
                 const px = Math.sin(t * 0.3 + f.seed) * 6;
                 const py = Math.sin(t * 0.5 + f.seed * 2) * 1.5 + f.baseY;
                 const pz = Math.cos(t * 0.2 + f.seed) * 3;
@@ -997,23 +1070,22 @@ try {
                 posAttr.needsUpdate = true;
 
             } else if (f.type === 'animal') {
-                // TIER LOGIK (Läuft am Boden)
-                const px = Math.sin(t * 0.5 + f.seed) * 7; // Etwas langsamer
-                f.mesh.position.set(px, f.baseY, 0);
+                // Tiere laufen auf ihrer eigenen X-Achse, aber auf ihrer zufälligen Z-Position
+                const px = Math.sin(t * 0.5 + f.seed) * 7; 
+                f.mesh.position.set(px, f.baseY, f.baseZ);
                 
                 const vx = Math.cos(t * 0.5 + f.seed);
                 f.mesh.rotation.y = vx > 0 ? 0 : Math.PI;
-                f.mesh.rotation.z = 0; // Keine Wellenbewegung
+                f.mesh.rotation.z = 0;
                 
             } else if (f.type === 'plant') {
-                // PFLANZEN LOGIK (Wabbelt am Boden)
-                f.mesh.position.set(f.baseX, f.baseY, 0);
-                // Wabbeln durch Rotation auf der Z-Achse
+                // Pflanzen wabbeln an ihrem zufälligen Ort
+                f.mesh.position.set(f.baseX, f.baseY, f.baseZ);
                 f.mesh.rotation.z = Math.sin(t * 2 + f.seed) * 0.15; 
                 
             } else if (f.type === 'stone') {
-                // STEIN LOGIK (Bewegt sich nicht)
-                f.mesh.position.set(f.baseX, f.baseY, 0);
+                // Steine bleiben starr an ihrem zufälligen Ort
+                f.mesh.position.set(f.baseX, f.baseY, f.baseZ);
                 f.mesh.rotation.z = 0;
             }
         });
@@ -1125,5 +1197,3 @@ try {
 </script>
 </body>
 </html>
-
-
