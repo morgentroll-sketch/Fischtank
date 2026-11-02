@@ -179,7 +179,7 @@
     </main>
 
     <main id="view-aquarium" class="hidden flex-1 w-full relative">
-        <div id="aquariumContainer" class="w-full h-[calc(100vh-73px)] bg-slate-950 relative overflow-hidden transition-all duration-500"></div>
+        <div id="aquariumContainer" class="w-full h-[calc(100vh-73px)] bg-gradient-to-b from-cyan-900 via-blue-900 to-slate-950 relative overflow-hidden transition-all duration-500"></div>
         
         <div class="absolute top-4 left-4 flex flex-col gap-2 z-10">
             <div class="bg-slate-900/80 backdrop-blur px-3 py-2 rounded-lg text-xs text-cyan-300 border border-slate-700/50">
@@ -239,7 +239,7 @@ try {
     }
 
     // ==========================================
-    // 3D SETUP (VORSCHAU EDITOR) - ORTHOGRAFISCH & STATISCH
+    // 3D SETUP (VORSCHAU EDITOR)
     // ==========================================
     const previewContainer = document.getElementById('previewContainer');
     const previewScene = new THREE.Scene();
@@ -257,6 +257,7 @@ try {
     
     const previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    previewRenderer.setClearColor(0x000000, 0);
     previewContainer.appendChild(previewRenderer.domElement);
 
     const orbitControls = new THREE.OrbitControls(previewCamera, previewRenderer.domElement);
@@ -1051,10 +1052,10 @@ try {
         const container = document.getElementById('aquariumContainer');
         if (!aquariumRenderer) {
             aquariumScene = new THREE.Scene();
-            aquariumScene.fog = new THREE.FogExp2(0x0f172a, 0.08);
+            aquariumScene.fog = new THREE.FogExp2(0x0f172a, 0.02); // Schwächerer Nebel
             
             const aspect = container.clientWidth / container.clientHeight;
-            const frustumSize = 12; 
+            const frustumSize = 20; // WEITER HERAUSGEZOOmt für mehr Platz
             aquariumCamera = new THREE.OrthographicCamera(
                 frustumSize * aspect / -2,
                 frustumSize * aspect / 2,
@@ -1066,6 +1067,7 @@ try {
             
             aquariumRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             aquariumRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            aquariumRenderer.setClearColor(0x000000, 0); // Macht den Hintergrund durchsichtig (CSS Gradient zeigt durch)
             aquariumRenderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(aquariumRenderer.domElement);
             
@@ -1073,8 +1075,8 @@ try {
             const d = new THREE.DirectionalLight(0x88ccff, 2.0); d.position.set(3, 5, 5); aquariumScene.add(d);
             const p = new THREE.PointLight(0x38bdf8, 1.5, 20); p.position.set(0, 2, 4); aquariumScene.add(p);
             
-            // Der neue sichtbare Boden (3D Block)
-            const groundGeo = new THREE.BoxGeometry(40, 1.5, 15); 
+            // Sichtbarer Boden
+            const groundGeo = new THREE.BoxGeometry(60, 1.5, 15); 
             const groundMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 1 }); 
             const ground = new THREE.Mesh(groundGeo, groundMat);
             ground.position.y = groundY - 0.75; 
@@ -1085,7 +1087,7 @@ try {
             const bubbleCount = 150;
             const bubblePositions = new Float32Array(bubbleCount * 3);
             for (let i = 0; i < bubbleCount * 3; i += 3) {
-                bubblePositions[i] = (Math.random() - 0.5) * 20;
+                bubblePositions[i] = (Math.random() - 0.5) * 30;
                 bubblePositions[i+1] = (Math.random() - 0.5) * 20;
                 bubblePositions[i+2] = (Math.random() - 0.5) * 10;
             }
@@ -1120,14 +1122,12 @@ try {
             cv.getContext('2d').drawImage(img, 0, 0);
             
             const mesh = buildFishGeometry(cv);
-            mesh.scale.set(1.2, 1.2, 1.2); 
             
             let baseX, baseZ, baseY;
 
             if (type !== 'fish') {
-                mesh.scale.set(0.8, 0.8, 0.8);
-                baseX = (Math.random() - 0.5) * 24; 
-                // WICHTIG: Z bleibt fest auf 0 (Vordergrund-Ebene)
+                mesh.scale.set(0.4, 0.4, 0.4); // Objekte kleiner machen
+                baseX = (Math.random() - 0.5) * 36; // Weite Verteilung auf X
                 baseZ = 0; 
                 
                 mesh.geometry.computeBoundingBox();
@@ -1138,10 +1138,10 @@ try {
                     mesh.rotation.y = Math.random() * Math.PI * 2;
                 }
             } else {
-                baseX = 0; 
-                // Fische bekommen eine leichte Tiefenvarianz, damit sie sich überlagern
+                mesh.scale.set(0.5, 0.5, 0.5); // Fische kleiner machen
+                baseX = (Math.random() - 0.5) * 30; // Über die ganze Breite verteilen
                 baseZ = (Math.random() - 0.5) * 4; 
-                baseY = (Math.random() - 0.5) * 4;
+                baseY = (Math.random() - 0.5) * 6;
             }
             
             const entry = { 
@@ -1152,10 +1152,10 @@ try {
                 baseZ: baseZ,
                 type: type,
                 name: name,
-                speedX: 0.2 + Math.random() * 0.3,
+                speedX: 0.2 + Math.random() * 0.4,
                 speedY: 0.3 + Math.random() * 0.4,
-                ampX: 3 + Math.random() * 3,
-                ampY: 1 + Math.random() * 2,
+                ampX: 5 + Math.random() * 15, // Weite Schwimmbewegung
+                ampY: 1 + Math.random() * 3,
                 phaseX: Math.random() * Math.PI * 2,
                 phaseY: Math.random() * Math.PI * 2
             };
@@ -1185,10 +1185,10 @@ try {
 
         aquariumFish.forEach((f) => {
             if (f.type === 'fish') {
-                // Fische schwimmen nur in X und Y
-                const px = Math.sin(t * f.speedX + f.phaseX) * f.ampX;
-                const py = Math.sin(t * f.speedY + f.phaseY) * f.ampY + f.baseY;
-                const pz = f.baseZ; // Z bleibt konstant im Hintergrund
+                // WICHTIG: baseX wird als Zentrum für die Sinuswelle genutzt!
+                const px = f.baseX + Math.sin(t * f.speedX + f.phaseX) * f.ampX;
+                const py = f.baseY + Math.sin(t * f.speedY + f.phaseY) * f.ampY;
+                const pz = f.baseZ; 
                 
                 f.mesh.position.set(px, py, pz);
                 
@@ -1211,14 +1211,13 @@ try {
                 posAttr.needsUpdate = true;
 
             } else if (f.type === 'animal') {
-                const px = Math.sin(t * 0.5 + f.seed) * 7; 
+                const px = f.baseX + Math.sin(t * 0.5 + f.seed) * 4; 
                 f.mesh.position.set(px, f.baseY, f.baseZ);
                 const vx = Math.cos(t * 0.5 + f.seed);
                 f.mesh.rotation.y = vx > 0 ? 0 : Math.PI;
                 f.mesh.rotation.z = 0;
                 
             } else if (f.type === 'plant') {
-                // Pflanze bleibt genau am unteren Rand auf z=0
                 f.mesh.position.set(f.baseX, f.baseY, f.baseZ);
                 f.mesh.rotation.z = Math.sin(t * 2 + f.seed) * 0.15; 
                 
@@ -1235,7 +1234,7 @@ try {
         if (!aquariumRenderer) return;
         const c = document.getElementById('aquariumContainer');
         const aspect = c.clientWidth / c.clientHeight;
-        const frustumSize = 12;
+        const frustumSize = 20;
         
         aquariumCamera.left = frustumSize * aspect / -2;
         aquariumCamera.right = frustumSize * aspect / 2;
@@ -1396,6 +1395,7 @@ try {
         
         detailRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         detailRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        detailRenderer.setClearColor(0x000000, 0); // Auch hier transparenter Hintergrund
         container.appendChild(detailRenderer.domElement);
 
         detailScene.add(new THREE.AmbientLight(0xffffff, 1.5));
@@ -1438,9 +1438,8 @@ try {
             
             const controls = new THREE.OrbitControls(detailCamera, detailRenderer.domElement);
             controls.enableDamping = true;
-            controls.enableRotate = false; 
-            controls.autoRotate = true; 
-            controls.autoRotateSpeed = 1.0;
+            controls.enableRotate = true; // DREHEN ERLAUBT
+            controls.autoRotate = false; // AUTO-ROTATION AUS, damit der Nutzer selbst drehen kann
 
             function animateDetail() {
                 detailAnimFrame = requestAnimationFrame(animateDetail);
