@@ -55,9 +55,7 @@
                 <canvas id="overlayCanvas" width="512" height="512" class="absolute inset-0 w-full h-full pointer-events-none z-20"></canvas>
             </div>
 
-            <!-- WERKZEUGE -->
             <div class="flex flex-col gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80">
-                <!-- Farben & Pinsel -->
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
                         <button class="color-btn w-7 h-7 rounded-full bg-amber-400 ring-4 ring-amber-400" data-color="#fbbf24"></button>
@@ -67,7 +65,6 @@
                         <button class="color-btn w-7 h-7 rounded-full bg-purple-500" data-color="#a855f7"></button>
                         <button class="color-btn w-7 h-7 rounded-full bg-slate-100" data-color="#f8fafc"></button>
                         
-                        <!-- Button für das RGB-Farbrad -->
                         <button id="toggleColorPickerBtn" class="ml-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition border border-slate-700">
                             <i class="fa-solid fa-palette"></i> Farbrad
                         </button>
@@ -75,7 +72,7 @@
 
                     <div class="flex items-center gap-2 flex-wrap">
                         <select id="brushType" class="bg-slate-800 text-xs text-slate-300 rounded-lg p-1.5 border border-slate-700 outline-none">
-                            <option value="normal">Standard Pinsel</option>
+                            <option value="normal">Standard</option>
                             <option value="marker">Marker</option>
                             <option value="spray">Sprühdose</option>
                             <option value="neon">Neon</option>
@@ -84,7 +81,6 @@
                     </div>
                 </div>
 
-                <!-- DAS NEUE RGB FARBRAD -->
                 <div id="advancedColorPicker" class="hidden flex-col gap-3 bg-slate-900 border border-slate-700 p-3 rounded-xl mt-1 transition-all">
                     <div class="flex gap-4 items-center justify-center">
                         <canvas id="colorWheel" width="120" height="120" class="cursor-crosshair rounded-full border-2 border-slate-600 shadow-inner"></canvas>
@@ -112,7 +108,6 @@
                     </div>
                 </div>
 
-                <!-- Aktionen -->
                 <div class="flex items-center gap-2 flex-wrap pt-2 border-t border-slate-800/60">
                     <button id="overFaceBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition"><i class="fa-solid fa-layer-group"></i> Über Gesicht</button>
                     <button id="fillBtn" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-[11px] font-semibold flex items-center gap-1.5 text-slate-300 transition"><i class="fa-solid fa-fill-drip"></i> Füllen</button>
@@ -138,12 +133,6 @@
                     <div><label class="text-[10px] text-slate-400 block mb-1">Bild X</label><input type="range" id="faceCropX" min="-50" max="50" value="0" class="w-full accent-amber-400"></div>
                     <div><label class="text-[10px] text-slate-400 block mb-1">Bild Y</label><input type="range" id="faceCropY" min="-50" max="50" value="0" class="w-full accent-amber-400"></div>
                 </div>
-            </div>
-            <div class="flex items-center gap-2 pt-1 flex-wrap">
-                <span class="text-xs text-slate-400">Vorlagen:</span>
-                <button class="template-btn text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300" data-shape="fish1">🐟 Klassisch</button>
-                <button class="template-btn text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300" data-shape="fish2">🐡 Rund</button>
-                <button class="template-btn text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300" data-shape="whale">🐋 Breit</button>
             </div>
         </div>
 
@@ -173,6 +162,7 @@
                     <option value="plant">🌿 Pflanze (wabbelt am Boden)</option>
                     <option value="stone">🪨 Stein (bleibt liegen)</option>
                 </select>
+                <input type="text" id="objectName" placeholder="Name eingeben (z.B. Nemo)..." maxlength="20" class="w-full mt-1 bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-cyan-500 focus:border-cyan-500 block p-2 outline-none">
             </div>
 
             <button id="update3dBtn" class="w-full py-3 bg-gradient-to-r from-cyan-500 to-indigo-600 font-bold text-white rounded-xl shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-rotate"></i> Neu berechnen</button>
@@ -188,6 +178,31 @@
         </div>
         <button id="clearAquariumBtn" class="absolute top-4 right-4 bg-red-600/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-semibold"><i class="fa-solid fa-trash"></i> Leeren</button>
     </main>
+
+    <!-- MODAL FÜR DIE DETAILANSICHT -->
+    <div id="detailModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300" id="modalContent">
+            <!-- Header -->
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-cyan-400 border border-slate-700 shadow-inner" id="modalCategoryIcon">
+                        <i class="fa-solid fa-fish"></i>
+                    </div>
+                    <div>
+                        <h3 id="modalName" class="font-bold text-lg text-white">Name</h3>
+                        <p id="modalCategory" class="text-xs text-slate-400">Kategorie</p>
+                    </div>
+                </div>
+                <button id="closeModalBtn" class="w-8 h-8 rounded-full bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <!-- 3D Ansicht -->
+            <div id="detail3dContainer" class="w-full aspect-square bg-slate-950 relative cursor-grab active:cursor-grabbing">
+                <!-- Der Detail-Renderer wird hier eingefügt -->
+            </div>
+        </div>
+    </div>
 
     <footer class="p-4 text-center text-xs text-slate-500 border-t border-slate-900">3D Aquarium Generator</footer>
 
@@ -207,13 +222,11 @@ try {
             const { createClient } = supabase;
             _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
             useCloud = true;
-        } catch(e) {
-            console.error("Supabase Fehler:", e);
-        }
+        } catch(e) { console.error("Supabase Fehler:", e); }
     }
 
     // ==========================================
-    // 3D SETUP (VORSCHAU)
+    // 3D SETUP (VORSCHAU EDITOR)
     // ==========================================
     const previewContainer = document.getElementById('previewContainer');
     const previewScene = new THREE.Scene();
@@ -249,9 +262,7 @@ try {
     function animatePreview() {
         requestAnimationFrame(animatePreview);
         globalRotationY += 0.005; 
-        if (currentPreviewMesh) {
-            currentPreviewMesh.rotation.y = globalRotationY;
-        }
+        if (currentPreviewMesh) currentPreviewMesh.rotation.y = globalRotationY;
         orbitControls.update();
         previewRenderer.render(previewScene, previewCamera);
     }
@@ -436,6 +447,7 @@ try {
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
 
         geometry.userData.originalPositions = new Float32Array(positions);
 
@@ -499,6 +511,7 @@ try {
     const brushSizeInput = document.getElementById('brushSize');
     const update3dBtn = document.getElementById('update3dBtn');
     const saveFishBtn = document.getElementById('saveFishBtn');
+    const objectNameInput = document.getElementById('objectName');
 
     let currentColor = '#fbbf24';
     let currentBrushSize = 18;
@@ -542,7 +555,6 @@ try {
     function drawColorWheel() {
         const radius = colorWheel.width / 2;
         const cx = radius, cy = radius;
-        
         for (let angle = 0; angle < 360; angle++) {
             const startAngle = (angle - 1) * Math.PI / 180;
             const endAngle = (angle + 1) * Math.PI / 180;
@@ -553,8 +565,6 @@ try {
             wCtx.fillStyle = `hsl(${angle}, 100%, 50%)`;
             wCtx.fill();
         }
-        
-        // Weißer Verlauf in die Mitte (Sättigung nimmt ab)
         const gradient = wCtx.createRadialGradient(cx, cy, 0, cx, cy, radius);
         gradient.addColorStop(0, 'rgba(255,255,255,1)');
         gradient.addColorStop(1, 'rgba(255,255,255,0)');
@@ -566,17 +576,11 @@ try {
     drawColorWheel();
 
     function updateColorUI(r, g, b) {
-        rSlider.value = r;
-        gSlider.value = g;
-        bSlider.value = b;
-        rVal.textContent = r;
-        gVal.textContent = g;
-        bVal.textContent = b;
-        
+        rSlider.value = r; gSlider.value = g; bSlider.value = b;
+        rVal.textContent = r; gVal.textContent = g; bVal.textContent = b;
         const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
         colorPreview.style.backgroundColor = hex;
         hexValue.textContent = hex;
-        
         currentColor = hex;
         document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('ring-4', 'ring-amber-400'));
     }
@@ -586,41 +590,28 @@ try {
         const rect = colorWheel.getBoundingClientRect();
         const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
         const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-        
-        const cx = rect.width / 2;
-        const cy = rect.height / 2;
-        const dx = x - cx;
-        const dy = y - cy;
+        const cx = rect.width / 2; const cy = rect.height / 2;
+        const dx = x - cx; const dy = y - cy;
         const dist = Math.sqrt(dx*dx + dy*dy);
-        
         if (dist > cx) return; 
-        
         let angle = Math.atan2(dy, dx) * 180 / Math.PI;
         if (angle < 0) angle += 360;
-        
         const s = dist / cx; 
-        const l = 0.5; 
-        
-        const [r, g, b] = hslToRgb(angle/360, s, l);
+        const [r, g, b] = hslToRgb(angle/360, s, 0.5);
         updateColorUI(r, g, b);
     }
 
     colorWheel.addEventListener('mousedown', pickColorFromWheel);
     colorWheel.addEventListener('touchstart', pickColorFromWheel, {passive: false});
-    
     rSlider.addEventListener('input', () => updateColorUI(+rSlider.value, +gSlider.value, +bSlider.value));
     gSlider.addEventListener('input', () => updateColorUI(+rSlider.value, +gSlider.value, +bSlider.value));
     bSlider.addEventListener('input', () => updateColorUI(+rSlider.value, +gSlider.value, +bSlider.value));
-
-    // Startfarbe setzen
     updateColorUI(251, 191, 36);
 
     // ==========================================
     // STANDARD TOOLS & EINSTELLUNGEN
     // ==========================================
-    brushTypeSelect.addEventListener('change', (e) => {
-        currentBrushType = e.target.value;
-    });
+    brushTypeSelect.addEventListener('change', (e) => currentBrushType = e.target.value);
 
     function updatePointerEvents() {
         if (isShiftPressed || paintOverFaceMode) {
@@ -632,15 +623,11 @@ try {
         }
     }
 
-    window.addEventListener('keydown', e => { 
-        if (e.key === 'Shift') { isShiftPressed = true; updatePointerEvents(); } 
-    });
-    window.addEventListener('keyup', e => { 
-        if (e.key === 'Shift') { isShiftPressed = false; updatePointerEvents(); } 
-    });
+    window.addEventListener('keydown', e => { if (e.key === 'Shift') { isShiftPressed = true; updatePointerEvents(); } });
+    window.addEventListener('keyup', e => { if (e.key === 'Shift') { isShiftPressed = false; updatePointerEvents(); } });
 
     // ==========================================
-    // SCANLINE FLOOD FILL (Hochperformant & Zuverlässig)
+    // SCANLINE FLOOD FILL
     // ==========================================
     function hexToRgb(hex) {
         var bigint = parseInt(hex.slice(1), 16);
@@ -711,7 +698,6 @@ try {
         const comp = document.createElement('canvas');
         comp.width = 512; comp.height = 512;
         const c = comp.getContext('2d');
-        
         c.drawImage(drawCanvas, 0, 0);
 
         if (!faceOverlay.classList.contains('hidden') && faceImg.src) {
@@ -722,7 +708,6 @@ try {
             const relY = (faceBox.top - canvasBox.top) * scaleFactor;
             const relSize = faceBox.width * scaleFactor;
             const r = relSize / 2;
-            
             const rot = parseInt(faceRotate.value) || 0;
             const blend = (parseInt(faceBlend.value) || 40) / 100;
             const zoom = parseFloat(faceCropZoom.value) || 1;
@@ -733,17 +718,9 @@ try {
             fc.width = relSize; fc.height = relSize;
             const fx = fc.getContext('2d');
 
-            fx.save(); 
-            fx.beginPath(); 
-            fx.arc(r, r, r * 0.92, 0, Math.PI * 2); 
-            fx.clip();
-            
-            fx.translate(r, r);
-            fx.translate(panX, panY);
-            fx.rotate(rot * Math.PI / 180);
-            fx.scale(zoom, zoom);
-            fx.drawImage(faceImg, -r, -r, relSize, relSize);
-            fx.restore();
+            fx.save(); fx.beginPath(); fx.arc(r, r, r * 0.92, 0, Math.PI * 2); fx.clip();
+            fx.translate(r, r); fx.translate(panX, panY); fx.rotate(rot * Math.PI / 180); fx.scale(zoom, zoom);
+            fx.drawImage(faceImg, -r, -r, relSize, relSize); fx.restore();
 
             if (blend > 0) {
                 fx.save(); fx.globalCompositeOperation = 'soft-light';
@@ -771,7 +748,6 @@ try {
                 out.data[i+3] = src.data[i+3] > 25 ? 255 : 0;
             }
             sc.putImageData(out, 0, 0);
-
             mc.globalCompositeOperation = 'destination-in';
             mc.drawImage(shapeMask, 0, 0);
             c.drawImage(mask, 0, 0);
@@ -781,10 +757,8 @@ try {
         overlayMask.width = 512; overlayMask.height = 512;
         const omc = overlayMask.getContext('2d');
         omc.drawImage(overlayCanvas, 0, 0);
-        
         omc.globalCompositeOperation = 'destination-in';
         omc.drawImage(drawCanvas, 0, 0); 
-        
         c.drawImage(overlayMask, 0, 0);
 
         return comp;
@@ -820,11 +794,8 @@ try {
             document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-4', 'ring-amber-400'));
             btn.classList.add('ring-4', 'ring-amber-400');
             currentColor = btn.dataset.color; 
-            
-            // RGB Slider anpassen
             const rgb = hexToRgb(currentColor);
             updateColorUI(rgb[0], rgb[1], rgb[2]);
-
             isEraser = false; isFill = false;
             eraserBtn.classList.remove('bg-amber-500', 'text-slate-950');
             fillBtn.classList.remove('bg-amber-500', 'text-slate-950');
@@ -869,7 +840,6 @@ try {
 
     function startDraw(e) {
         const p = getCanvasPos(e);
-        
         if (isFill) {
             e.preventDefault();
             let targetCtx = (isShiftPressed || paintOverFaceMode) ? overlayCtx : drawCtx;
@@ -877,14 +847,9 @@ try {
             update3DPreviewMesh(true);
             return;
         }
-
         isDrawing = true; 
-        
-        if (isShiftPressed || paintOverFaceMode) {
-            activeCtx = overlayCtx;
-        } else {
-            activeCtx = drawCtx;
-        }
+        if (isShiftPressed || paintOverFaceMode) activeCtx = overlayCtx;
+        else activeCtx = drawCtx;
 
         activeCtx.shadowBlur = 0;
         activeCtx.beginPath(); 
@@ -895,25 +860,13 @@ try {
         if (!isDrawing || isFill) return; 
         e.preventDefault();
         const p = getCanvasPos(e);
-        
         activeCtx.lineWidth = currentBrushSize; 
         
-        if (currentBrushType === 'marker') {
-            activeCtx.lineCap = 'square';
-            activeCtx.lineJoin = 'miter';
-        } else {
-            activeCtx.lineCap = 'round';
-            activeCtx.lineJoin = 'round';
-        }
+        if (currentBrushType === 'marker') { activeCtx.lineCap = 'square'; activeCtx.lineJoin = 'miter'; }
+        else { activeCtx.lineCap = 'round'; activeCtx.lineJoin = 'round'; }
         
-        if (isEraser) { 
-            activeCtx.globalCompositeOperation = 'destination-out'; 
-            activeCtx.shadowBlur = 0;
-        } else { 
-            activeCtx.globalCompositeOperation = 'source-over'; 
-            activeCtx.strokeStyle = currentColor; 
-            activeCtx.fillStyle = currentColor;
-        }
+        if (isEraser) { activeCtx.globalCompositeOperation = 'destination-out'; activeCtx.shadowBlur = 0; }
+        else { activeCtx.globalCompositeOperation = 'source-over'; activeCtx.strokeStyle = currentColor; activeCtx.fillStyle = currentColor; }
 
         if (currentBrushType === 'spray' && !isEraser) {
             const density = Math.floor(currentBrushSize * 1.5);
@@ -921,29 +874,20 @@ try {
             for (let i = 0; i < density; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const r = Math.random() * radius;
-                const offsetX = Math.cos(angle) * r;
-                const offsetY = Math.sin(angle) * r;
                 activeCtx.beginPath();
-                activeCtx.arc(p.x + offsetX, p.y + offsetY, Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
+                activeCtx.arc(p.x + Math.cos(angle) * r, p.y + Math.sin(angle) * r, Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
                 activeCtx.fill();
             }
         } else if (currentBrushType === 'neon' && !isEraser) {
-            activeCtx.shadowBlur = 20;
-            activeCtx.shadowColor = currentColor;
-            activeCtx.lineTo(p.x, p.y); 
-            activeCtx.stroke();
+            activeCtx.shadowBlur = 20; activeCtx.shadowColor = currentColor;
+            activeCtx.lineTo(p.x, p.y); activeCtx.stroke();
         } else {
-            activeCtx.lineTo(p.x, p.y); 
-            activeCtx.stroke();
+            activeCtx.lineTo(p.x, p.y); activeCtx.stroke();
         }
     }
     
     function stopDraw() { 
-        if (isDrawing) { 
-            isDrawing = false; 
-            activeCtx.shadowBlur = 0;
-            update3DPreviewMesh(true); 
-        } 
+        if (isDrawing) { isDrawing = false; activeCtx.shadowBlur = 0; update3DPreviewMesh(true); } 
     }
 
     drawCanvas.addEventListener('mousedown', startDraw);
@@ -984,13 +928,7 @@ try {
             faceControls.classList.remove('hidden');
             faceOverlay.style.left = '70px'; faceOverlay.style.top = '170px';
             faceOverlay.style.width = '110px'; faceOverlay.style.height = '110px';
-            
-            faceScale.value = 110;
-            faceRotate.value = 0;
-            faceCropZoom.value = 1;
-            faceCropX.value = 0;
-            faceCropY.value = 0;
-            
+            faceScale.value = 110; faceRotate.value = 0; faceCropZoom.value = 1; faceCropX.value = 0; faceCropY.value = 0;
             updateFaceTransform();
         };
         rd.readAsDataURL(f);
@@ -1001,21 +939,17 @@ try {
         const panX = parseFloat(faceCropX.value);
         const panY = parseFloat(faceCropY.value);
         const rot = parseFloat(faceRotate.value);
-
         faceImg.style.transform = `translate(${panX}px, ${panY}px) rotate(${rot}deg) scale(${zoom})`;
         update3DPreviewMesh(false);
     }
 
     removeFaceBtn.addEventListener('click', () => {
-        faceOverlay.classList.add('hidden'); 
-        faceControls.classList.add('hidden');
-        faceImg.src = ''; 
-        update3DPreviewMesh(true);
+        faceOverlay.classList.add('hidden'); faceControls.classList.add('hidden');
+        faceImg.src = ''; update3DPreviewMesh(true);
     });
 
     faceScale.addEventListener('input', e => {
-        faceOverlay.style.width = e.target.value + 'px';
-        faceOverlay.style.height = e.target.value + 'px';
+        faceOverlay.style.width = e.target.value + 'px'; faceOverlay.style.height = e.target.value + 'px';
         update3DPreviewMesh(false);
     });
 
@@ -1029,7 +963,6 @@ try {
     function startFaceDrag(e) {
         if (isShiftPressed || paintOverFaceMode) return;
         if (e.target === removeFaceBtn || removeFaceBtn.contains(e.target)) return;
-        
         isDraggingFace = true;
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
@@ -1084,9 +1017,7 @@ try {
             const groundGeo = new THREE.PlaneGeometry(30, 20);
             const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 1 });
             const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2;
-            ground.position.y = groundY;
-            ground.position.z = -2;
+            ground.rotation.x = -Math.PI / 2; ground.position.y = groundY; ground.position.z = -2;
             aquariumScene.add(ground);
             
             const bubbleGeo = new THREE.BufferGeometry();
@@ -1103,6 +1034,9 @@ try {
             aquariumScene.add(bubbleParticles);
 
             aquariumClock = new THREE.Clock();
+
+            // Raycaster für Klicks
+            aquariumRenderer.domElement.addEventListener('pointerdown', onAquariumClick);
         }
         
         loadFishFromStorage();
@@ -1111,7 +1045,7 @@ try {
             realtimeSubscription = _supabase
                 .channel('public:fishes')
                 .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fishes' }, payload => {
-                    addFishToAquarium(payload.new.image_data, payload.new.type || 'fish');
+                    addFishToAquarium(payload.new.image_data, payload.new.type || 'fish', payload.new.name || 'Unbenannt');
                 })
                 .subscribe();
         }
@@ -1119,7 +1053,7 @@ try {
         animateAquarium();
     };
 
-    function addFishToAquarium(base64Image, type = 'fish') {
+    function addFishToAquarium(base64Image, type = 'fish', name = 'Unbenannt') {
         const img = new Image();
         img.onload = () => {
             const cv = document.createElement('canvas'); cv.width = 512; cv.height = 512;
@@ -1127,15 +1061,19 @@ try {
             
             const mesh = buildFishGeometry(cv);
             mesh.scale.set(1.2, 1.2, 1.2); 
-            mesh.position.set(0, 0, 0);
             
             let baseX, baseZ, baseY;
 
-            if (type === 'stone' || type === 'plant' || type === 'animal') {
+            if (type !== 'fish') {
+                // Objekte auf den Boden setzen
                 mesh.scale.set(0.8, 0.8, 0.8);
                 baseX = (Math.random() - 0.5) * 20; 
                 baseZ = (Math.random() - 0.5) * 10 - 2; 
-                baseY = groundY + 0.4; 
+                
+                // Höhe berechnen (damit sie EXAKT auf dem Boden sitzen)
+                mesh.geometry.computeBoundingBox();
+                const h = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
+                baseY = groundY + (h * mesh.scale.y) / 2;
                 
                 if (type === 'stone' || type === 'plant') {
                     mesh.rotation.y = Math.random() * Math.PI * 2;
@@ -1152,8 +1090,22 @@ try {
                 baseY: baseY,
                 baseX: baseX,
                 baseZ: baseZ,
-                type: type 
+                type: type,
+                name: name,
+                // Neue Variablen für individuelle Schwimmbahnen
+                speedX: 0.2 + Math.random() * 0.3,
+                speedY: 0.3 + Math.random() * 0.4,
+                speedZ: 0.2 + Math.random() * 0.3,
+                ampX: 3 + Math.random() * 3,
+                ampY: 1 + Math.random() * 2,
+                ampZ: 2 + Math.random() * 3,
+                phaseX: Math.random() * Math.PI * 2,
+                phaseY: Math.random() * Math.PI * 2,
+                phaseZ: Math.random() * Math.PI * 2
             };
+            mesh.userData = entry; // Speichere Daten im Mesh für Klick-Erkennung
+            mesh.position.set(baseX, baseY, baseZ);
+            
             aquariumScene.add(mesh);
             aquariumFish.push(entry);
             document.getElementById('fishCount').textContent = aquariumFish.length;
@@ -1177,32 +1129,32 @@ try {
 
         aquariumFish.forEach((f) => {
             if (f.type === 'fish') {
-                const px = Math.sin(t * 0.3 + f.seed) * 6;
-                const py = Math.sin(t * 0.5 + f.seed * 2) * 1.5 + f.baseY;
-                const pz = Math.cos(t * 0.2 + f.seed) * 3;
+                // Komplett individuelle Schwimmbahnen (Lissajous-Figuren)
+                const px = Math.sin(t * f.speedX + f.phaseX) * f.ampX;
+                const py = Math.sin(t * f.speedY + f.phaseY) * f.ampY + f.baseY;
+                const pz = Math.cos(t * f.speedZ + f.phaseZ) * f.ampZ;
                 
                 f.mesh.position.set(px, py, pz);
                 
-                const vx = Math.cos(t * 0.3 + f.seed) * 0.3 * 6;
-                const vy = Math.cos(t * 0.5 + f.seed * 2) * 0.5 * 1.5;
+                // Richtung berechnen für die Drehung
+                const vx = Math.cos(t * f.speedX + f.phaseX) * f.ampX * f.speedX;
+                const vy = Math.cos(t * f.speedY + f.phaseY) * f.ampY * f.speedY;
                 
                 const targetRotY = vx > 0 ? 0 : Math.PI;
-                const targetRotZ = -vy * 0.4; 
+                const targetRotZ = -vy * 0.3; 
 
                 f.mesh.rotation.y += (targetRotY - f.mesh.rotation.y) * 0.1;
                 f.mesh.rotation.z += (targetRotZ - f.mesh.rotation.z) * 0.1;
 
+                // Wellenbewegung
                 const posAttr = f.mesh.geometry.attributes.position;
                 const orig = f.mesh.geometry.userData.originalPositions;
-                
                 for (let i = 0; i < posAttr.count; i++) {
                     const ox = orig[i * 3];
                     const oy = orig[i * 3 + 1];
                     const oz = orig[i * 3 + 2];
-                    
                     const tailWeight = Math.max(0, ox + 0.5); 
-                    const wave = Math.sin(t * 8.0 + ox * 3.0) * 0.15 * tailWeight;
-                    
+                    const wave = Math.sin(t * 8.0 + f.seed + ox * 3.0) * 0.15 * tailWeight;
                     posAttr.setXYZ(i, ox, oy, oz + wave);
                 }
                 posAttr.needsUpdate = true;
@@ -1210,7 +1162,6 @@ try {
             } else if (f.type === 'animal') {
                 const px = Math.sin(t * 0.5 + f.seed) * 7; 
                 f.mesh.position.set(px, f.baseY, f.baseZ);
-                
                 const vx = Math.cos(t * 0.5 + f.seed);
                 f.mesh.rotation.y = vx > 0 ? 0 : Math.PI;
                 f.mesh.rotation.z = 0;
@@ -1243,10 +1194,10 @@ try {
         if (useCloud) {
             const { data, error } = await _supabase.from('fishes').select('*');
             if (error) { console.error('Fehler beim Laden:', error); return; }
-            data.forEach(item => addFishToAquarium(item.image_data, item.type || 'fish'));
+            data.forEach(item => addFishToAquarium(item.image_data, item.type || 'fish', item.name || 'Unbenannt'));
         } else {
             const data = JSON.parse(localStorage.getItem('aquariumFish') || '[]');
-            data.forEach(item => addFishToAquarium(item.img, item.type || 'fish'));
+            data.forEach(item => addFishToAquarium(item.img, item.type || 'fish', item.name || 'Unbenannt'));
         }
     }
 
@@ -1254,10 +1205,11 @@ try {
         const comp = buildComposite();
         const base64Image = comp.toDataURL('image/png');
         const selectedType = document.getElementById('objectType').value;
+        const objectName = objectNameInput.value.trim() || 'Unbenannt';
         
         if (useCloud) {
             saveFishBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Lade hoch...';
-            const { error } = await _supabase.from('fishes').insert([{ image_data: base64Image, type: selectedType }]);
+            const { error } = await _supabase.from('fishes').insert([{ image_data: base64Image, type: selectedType, name: objectName }]);
             if (error) {
                 saveFishBtn.innerHTML = '<i class="fa-solid fa-xmark"></i> Fehler!';
                 console.error(error);
@@ -1266,12 +1218,15 @@ try {
             }
         } else {
             const arr = JSON.parse(localStorage.getItem('aquariumFish') || '[]');
-            arr.push({ img: base64Image, type: selectedType, ts: Date.now() });
+            arr.push({ img: base64Image, type: selectedType, name: objectName, ts: Date.now() });
             localStorage.setItem('aquariumFish', JSON.stringify(arr));
             saveFishBtn.innerHTML = '<i class="fa-solid fa-check"></i> Lokal gespeichert!';
         }
         
-        setTimeout(() => { saveFishBtn.innerHTML = '<i class="fa-solid fa-water"></i> Ins Aquarium freigeben'; }, 1500);
+        setTimeout(() => { 
+            saveFishBtn.innerHTML = '<i class="fa-solid fa-water"></i> Ins Aquarium freigeben'; 
+            objectNameInput.value = '';
+        }, 1500);
     });
 
     document.getElementById('clearAquariumBtn').addEventListener('click', async () => {
@@ -1287,6 +1242,117 @@ try {
         aquariumFish = [];
         document.getElementById('fishCount').textContent = '0';
     });
+
+    // ==========================================
+    // KLICK-INTERAKTION & DETAIL-MODAL
+    // ==========================================
+    const detailModal = document.getElementById('detailModal');
+    const modalContent = document.getElementById('modalContent');
+    const modalName = document.getElementById('modalName');
+    const modalCategory = document.getElementById('modalCategory');
+    const modalCategoryIcon = document.getElementById('modalCategoryIcon');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    
+    let detailRenderer, detailScene, detailCamera, detailMesh, detailAnimFrame;
+
+    function onAquariumClick(event) {
+        if (!aquariumRenderer) return;
+        const rect = aquariumRenderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, aquariumCamera);
+
+        const intersects = raycaster.intersectObjects(aquariumFish.map(f => f.mesh));
+
+        if (intersects.length > 0) {
+            const clickedMesh = intersects[0].object;
+            const data = clickedMesh.userData;
+            openDetailModal(data);
+        }
+    }
+
+    function openDetailModal(data) {
+        // Daten in Modal eintragen
+        modalName.textContent = data.name;
+        modalCategory.textContent = data.type === 'fish' ? 'Fisch' : data.type === 'stone' ? 'Stein' : data.type === 'plant' ? 'Pflanze' : 'Tier';
+        
+        if(data.type === 'fish') modalCategoryIcon.innerHTML = '<i class="fa-solid fa-fish"></i>';
+        else if(data.type === 'stone') modalCategoryIcon.innerHTML = '<i class="fa-solid fa-cube"></i>';
+        else if(data.type === 'plant') modalCategoryIcon.innerHTML = '<i class="fa-solid fa-leaf"></i>';
+        else modalCategoryIcon.innerHTML = '<i class="fa-solid fa-spider"></i>';
+
+        // Modal anzeigen
+        detailModal.classList.remove('hidden');
+        detailModal.classList.add('flex');
+        setTimeout(() => {
+            detailModal.classList.remove('opacity-0');
+            modalContent.classList.remove('scale-95');
+        }, 10);
+
+        initDetail3D(data.mesh);
+    }
+
+    function closeDetailModal() {
+        detailModal.classList.add('opacity-0');
+        modalContent.classList.add('scale-95');
+        setTimeout(() => {
+            detailModal.classList.remove('flex');
+            detailModal.classList.add('hidden');
+            // 3D Cleanup
+            if(detailAnimFrame) cancelAnimationFrame(detailAnimFrame);
+            if(detailRenderer) {
+                detailRenderer.dispose();
+                document.getElementById('detail3dContainer').innerHTML = '';
+                detailRenderer = null;
+            }
+            if(detailMesh) {
+                detailMesh.geometry.dispose();
+                detailMesh.material.dispose();
+                detailMesh = null;
+            }
+        }, 300);
+    }
+
+    closeModalBtn.addEventListener('click', closeDetailModal);
+    detailModal.addEventListener('click', (e) => { if(e.target === detailModal) closeDetailModal(); });
+
+    function initDetail3D(sourceMesh) {
+        const container = document.getElementById('detail3dContainer');
+        
+        detailScene = new THREE.Scene();
+        detailCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+        detailCamera.position.set(0, 0, 4);
+        
+        detailRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        detailRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        detailRenderer.setSize(container.clientWidth, container.clientHeight);
+        container.appendChild(detailRenderer.domElement);
+
+        detailScene.add(new THREE.AmbientLight(0xffffff, 1.2));
+        const d = new THREE.DirectionalLight(0x38bdf8, 2.0); d.position.set(5, 5, 5); detailScene.add(d);
+        const p = new THREE.DirectionalLight(0xf43f5e, 1.0); p.position.set(-5, -5, -5); detailScene.add(p);
+
+        // Mesh klonen (damit das Original im Aquarium weiterlebt)
+        detailMesh = sourceMesh.clone();
+        detailMesh.position.set(0,0,0);
+        detailMesh.rotation.set(0,0,0);
+        detailMesh.scale.set(2, 2, 2); // Etwas größer für das Modal
+        detailScene.add(detailMesh);
+
+        const controls = new THREE.OrbitControls(detailCamera, detailRenderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true; // Sanftes Drehen
+
+        function animateDetail() {
+            detailAnimFrame = requestAnimationFrame(animateDetail);
+            controls.update();
+            detailRenderer.render(detailScene, detailCamera);
+        }
+        animateDetail();
+    }
 
     // ==========================================
     // VIEW SWITCHING
