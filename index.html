@@ -21,8 +21,8 @@
         }
         /* HELLER, BLAUER HINTERGRUND-FILTER */
         .aquarium-bg-tinted {
-            background-blend-mode: screen; /* Hellt das Bild auf und tönt es */
-            background-color: ##ffffff; /* Helles Cyan/Blau */
+            background-blend-mode: screen; 
+            background-color: #bae6fd; 
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -253,7 +253,7 @@ try {
         frustumSize / -2, 
         0.1, 1000
     );
-    previewCamera.position.set(0, 0, 5); // Kamera direkt von vorne (Seitenansicht)
+    previewCamera.position.set(0, 0, 5); 
     
     const previewRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     previewRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -262,7 +262,7 @@ try {
     const orbitControls = new THREE.OrbitControls(previewCamera, previewRenderer.domElement);
     orbitControls.enableDamping = true; 
     orbitControls.dampingFactor = 0.05;
-    orbitControls.enableRotate = false; // Keine Drehung mehr
+    orbitControls.enableRotate = false;
 
     previewScene.add(new THREE.AmbientLight(0xffffff, 1.2));
     const dirLight = new THREE.DirectionalLight(0x38bdf8, 2.0); dirLight.position.set(5, 5, 5); previewScene.add(dirLight);
@@ -290,7 +290,6 @@ try {
 
     function animatePreview() {
         requestAnimationFrame(animatePreview);
-        // Fisch dreht sich nicht mehr von selbst.
         orbitControls.update();
         previewRenderer.render(previewScene, previewCamera);
     }
@@ -1041,7 +1040,7 @@ try {
     window.addEventListener('touchend', stopFaceDrag);
 
     // ==========================================
-    // AQUARIUM LOGIK (ORTHOGRAFISCH)
+    // AQUARIUM LOGIK (2D-ANSICHT / X-Y EBENE)
     // ==========================================
     let aquariumRenderer = null, aquariumScene = null, aquariumCamera = null, aquariumFish = [], aquariumClock = null;
     let bubbleParticles = null;
@@ -1054,9 +1053,8 @@ try {
             aquariumScene = new THREE.Scene();
             aquariumScene.fog = new THREE.FogExp2(0x0f172a, 0.08);
             
-            // Orthografische Kamera für das Aquarium (wie ein 2D Side-Scroller)
             const aspect = container.clientWidth / container.clientHeight;
-            const frustumSize = 12; // Sichtfeld (Höhe)
+            const frustumSize = 12; 
             aquariumCamera = new THREE.OrthographicCamera(
                 frustumSize * aspect / -2,
                 frustumSize * aspect / 2,
@@ -1075,10 +1073,12 @@ try {
             const d = new THREE.DirectionalLight(0x88ccff, 2.0); d.position.set(3, 5, 5); aquariumScene.add(d);
             const p = new THREE.PointLight(0x38bdf8, 1.5, 20); p.position.set(0, 2, 4); aquariumScene.add(p);
             
-            const groundGeo = new THREE.PlaneGeometry(30, 20);
-            const groundMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 1 });
+            // Der neue sichtbare Boden (3D Block)
+            const groundGeo = new THREE.BoxGeometry(40, 1.5, 15); 
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 1 }); 
             const ground = new THREE.Mesh(groundGeo, groundMat);
-            ground.rotation.x = -Math.PI / 2; ground.position.y = groundY; ground.position.z = -2;
+            ground.position.y = groundY - 0.75; 
+            ground.position.z = -2;
             aquariumScene.add(ground);
             
             const bubbleGeo = new THREE.BufferGeometry();
@@ -1126,8 +1126,9 @@ try {
 
             if (type !== 'fish') {
                 mesh.scale.set(0.8, 0.8, 0.8);
-                baseX = (Math.random() - 0.5) * 20; 
-                baseZ = (Math.random() - 0.5) * 10 - 2; 
+                baseX = (Math.random() - 0.5) * 24; 
+                // WICHTIG: Z bleibt fest auf 0 (Vordergrund-Ebene)
+                baseZ = 0; 
                 
                 mesh.geometry.computeBoundingBox();
                 const h = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
@@ -1138,7 +1139,8 @@ try {
                 }
             } else {
                 baseX = 0; 
-                baseZ = (Math.random() - 0.5) * 8; // Zufällige Tiefe im Hintergrund
+                // Fische bekommen eine leichte Tiefenvarianz, damit sie sich überlagern
+                baseZ = (Math.random() - 0.5) * 4; 
                 baseY = (Math.random() - 0.5) * 4;
             }
             
@@ -1183,22 +1185,19 @@ try {
 
         aquariumFish.forEach((f) => {
             if (f.type === 'fish') {
-                // Fische schwimmen nur noch in X und Y (2D Ebene)
+                // Fische schwimmen nur in X und Y
                 const px = Math.sin(t * f.speedX + f.phaseX) * f.ampX;
                 const py = Math.sin(t * f.speedY + f.phaseY) * f.ampY + f.baseY;
-                const pz = f.baseZ; // Z bleibt konstant
+                const pz = f.baseZ; // Z bleibt konstant im Hintergrund
                 
                 f.mesh.position.set(px, py, pz);
                 
-                // Blickrichtung basierend auf X-Geschwindigkeit
                 const vx = Math.cos(t * f.speedX + f.phaseX);
                 const targetRotY = vx > 0 ? 0 : Math.PI;
                 
-                // Schnelles Umdrehen
                 f.mesh.rotation.y += (targetRotY - f.mesh.rotation.y) * 0.2;
-                f.mesh.rotation.z = 0; // Keine Schräglage mehr
+                f.mesh.rotation.z = 0;
 
-                // Wellenbewegung
                 const posAttr = f.mesh.geometry.attributes.position;
                 const orig = f.mesh.geometry.userData.originalPositions;
                 for (let i = 0; i < posAttr.count; i++) {
@@ -1219,6 +1218,7 @@ try {
                 f.mesh.rotation.z = 0;
                 
             } else if (f.type === 'plant') {
+                // Pflanze bleibt genau am unteren Rand auf z=0
                 f.mesh.position.set(f.baseX, f.baseY, f.baseZ);
                 f.mesh.rotation.z = Math.sin(t * 2 + f.seed) * 0.15; 
                 
@@ -1306,7 +1306,7 @@ try {
     });
 
     // ==========================================
-    // KLICK-INTERAKTION & DETAIL-MODAL (ORTHOGRAFISCH)
+    // KLICK-INTERAKTION & DETAIL-MODAL
     // ==========================================
     const detailModal = document.getElementById('detailModal');
     const modalContent = document.getElementById('modalContent');
@@ -1383,7 +1383,6 @@ try {
         container.innerHTML = ''; 
 
         detailScene = new THREE.Scene();
-        // Orthografische Kamera auch im Detail-Modal
         const aspect = container.clientWidth / container.clientHeight || 1;
         const frustumSize = 3;
         detailCamera = new THREE.OrthographicCamera(
@@ -1439,8 +1438,7 @@ try {
             
             const controls = new THREE.OrbitControls(detailCamera, detailRenderer.domElement);
             controls.enableDamping = true;
-            controls.enableRotate = false; // Statisch von der Seite
-            // Optional: Kleines Wackeln für 3D-Effekt im Modal
+            controls.enableRotate = false; 
             controls.autoRotate = true; 
             controls.autoRotateSpeed = 1.0;
 
