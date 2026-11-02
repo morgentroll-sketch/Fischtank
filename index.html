@@ -392,7 +392,7 @@ try {
         const contourPoints = traceContour(imgData, W, H);
         if (!contourPoints) return new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xff0000}));
 
-        // PERFORMANCE BOOST: step = 3 statt 1 (reduziert Dreiecke massiv)
+        // PERFORMANCE BOOST: step = 3 statt 1
         const step = 3; 
         const positions = [];
         const uvs = [];
@@ -1121,21 +1121,19 @@ try {
             const cv = document.createElement('canvas'); cv.width = 512; cv.height = 512;
             cv.getContext('2d').drawImage(img, 0, 0);
             
-            // NEU: Count für Scatter (Pflanzen/Steine) oder Schwärme
+            // Count für Scatter (Pflanzen/Steine) oder Schwärme
             let count = 1;
             if (type === 'fish') {
                 if (Math.random() < 0.3) count = 3 + Math.floor(Math.random() * 4); 
             } else if (type === 'animal') {
                 if (Math.random() < 0.3) count = 2 + Math.floor(Math.random() * 2);
             } else if (type === 'plant' || type === 'stone') {
-                // VEGETATION SCATTER: Erzeuge 6 bis 14 Kopien für den Boden
                 count = 6 + Math.floor(Math.random() * 9);
             }
 
             for (let i = 0; i < count; i++) {
                 const mesh = buildFishGeometry(cv);
                 
-                // Größe variieren
                 const sizeVar = 0.4 + Math.random() * 0.8;
                 const baseScale = (type === 'fish') ? 0.5 : 0.4;
                 mesh.scale.set(baseScale * sizeVar, baseScale * sizeVar, baseScale * sizeVar);
@@ -1143,9 +1141,7 @@ try {
                 let baseX, baseZ, baseY, offsetX, offsetY;
 
                 if (type !== 'fish') {
-                    // Breite Verteilung auf der X-Achse (gesamter Boden)
                     baseX = (Math.random() - 0.5) * 55; 
-                    // Tiefenverteilung auf Z für 3D-Effekt
                     baseZ = (Math.random() - 0.5) * 8; 
                     offsetX = 0; offsetY = 0;
                     
@@ -1159,7 +1155,8 @@ try {
                 } else {
                     if (i === 0) {
                         baseX = (Math.random() - 0.5) * 30; 
-                        baseY = (Math.random() - 0.5) * 6;
+                        // Startposition der Fische etwas höher ansetzen
+                        baseY = (Math.random() - 0.5) * 5 + 2; 
                     }
                     offsetX = (i - count / 2) * 1.5 + (Math.random() - 0.5);
                     offsetY = (i - count / 2) * 0.8 + (Math.random() - 0.5);
@@ -1176,7 +1173,6 @@ try {
                     name: name,
                     offsetX: offsetX,
                     offsetY: offsetY,
-                    // GESCHWINDIGKEIT REDUZIERT
                     speedX: 0.05 + Math.random() * 0.1,
                     speedY: 0.08 + Math.random() * 0.15,
                     ampX: 5 + Math.random() * 10, 
@@ -1211,10 +1207,16 @@ try {
 
         aquariumFish.forEach((f) => {
             if (f.type === 'fish') {
+                // NEU: Berechne die ungefähre Höhe des Fisches (für Kollision)
                 const px = f.baseX + f.offsetX + Math.sin(t * f.speedX + f.phaseX) * f.ampX;
-                const py = f.baseY + f.offsetY + Math.sin(t * f.speedY + f.phaseY) * f.ampY;
+                let py = f.baseY + f.offsetY + Math.sin(t * f.speedY + f.phaseY) * f.ampY;
                 const pz = f.baseZ; 
                 
+                // KOLLISION MIT BODEN: Verhindert, dass Fische unter den Boden schwimmen
+                // Fische werden am Boden abgefangen (mit kleinem Puffer)
+                const minY = groundY + 1.2; 
+                if (py < minY) py = minY;
+
                 f.mesh.position.set(px, py, pz);
                 
                 const vx = Math.cos(t * f.speedX + f.phaseX);
@@ -1230,7 +1232,6 @@ try {
                     const oy = orig[i * 3 + 1];
                     const oz = orig[i * 3 + 2];
                     const tailWeight = Math.max(0, ox + 0.5); 
-                    // WELLE LANGSAMER: t * 3.0 statt t * 8.0
                     const wave = Math.sin(t * 3.0 + f.seed + ox * 2.0) * 0.15 * tailWeight;
                     posAttr.setXYZ(i, ox, oy, oz + wave);
                 }
