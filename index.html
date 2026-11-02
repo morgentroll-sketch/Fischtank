@@ -180,7 +180,6 @@
     <main id="view-aquarium" class="hidden flex-1 w-full relative">
         <div id="aquariumContainer" class="w-full h-[calc(100vh-73px)] bg-gradient-to-b from-cyan-900 via-blue-900 to-slate-950 relative overflow-hidden transition-all duration-500"></div>
         
-        <!-- NEU: Zoom Slider & UI Overlay -->
         <div class="absolute top-4 right-4 flex flex-col gap-2 z-10 items-end">
             <button id="clearAquariumBtn" class="bg-red-600/80 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-semibold w-full"><i class="fa-solid fa-trash"></i> Leeren</button>
             
@@ -206,7 +205,6 @@
         </div>
     </main>
 
-    <!-- MODAL FÜR DIE DETAILANSICHT -->
     <div id="detailModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 opacity-0 transition-opacity duration-300">
         <div class="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform scale-95 transition-transform duration-300" id="modalContent">
             <div class="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
@@ -486,6 +484,15 @@ try {
         geometry.computeBoundingBox();
 
         geometry.userData.originalPositions = new Float32Array(positions);
+        
+        // NEU: MinX und Breite für die Wackelbewegung berechnen
+        let minX = Infinity, maxX = -Infinity;
+        for (let i = 0; i < positions.length; i += 3) {
+            if (positions[i] < minX) minX = positions[i];
+            if (positions[i] > maxX) maxX = positions[i];
+        }
+        geometry.userData.minX = minX;
+        geometry.userData.width = maxX - minX || 1;
 
         const texture = new THREE.CanvasTexture(compositeCanvas);
         texture.minFilter = THREE.LinearFilter; 
@@ -1056,7 +1063,7 @@ try {
     let bubbleParticles = null;
     let realtimeSubscription = null;
     let groundY = -3.5; 
-    let currentFrustumSize = 12; // NEU: Variable für den Zoom
+    let currentFrustumSize = 12; 
     
     window.initAquarium = function() {
         const container = document.getElementById('aquariumContainer');
@@ -1084,7 +1091,6 @@ try {
             const d = new THREE.DirectionalLight(0x88ccff, 2.0); d.position.set(3, 5, 5); aquariumScene.add(d);
             const p = new THREE.PointLight(0x38bdf8, 1.5, 20); p.position.set(0, 2, 4); aquariumScene.add(p);
             
-            // Sichtbarer Boden
             const groundGeo = new THREE.BoxGeometry(60, 1.5, 15); 
             const groundMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 1 }); 
             const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -1109,7 +1115,6 @@ try {
 
             aquariumRenderer.domElement.addEventListener('pointerdown', onAquariumClick);
 
-            // NEU: Zoom-Events
             zoomSlider.addEventListener('input', (e) => {
                 currentFrustumSize = parseFloat(e.target.value);
                 updateCameraZoom();
@@ -1168,7 +1173,6 @@ try {
             for (let i = 0; i < count; i++) {
                 const mesh = buildFishGeometry(cv);
                 
-                // Größe etwas angehoben für bessere Sichtbarkeit
                 const sizeVar = 0.6 + Math.random() * 0.8;
                 const baseScale = (type === 'fish') ? 0.8 : 0.6; 
                 mesh.scale.set(baseScale * sizeVar, baseScale * sizeVar, baseScale * sizeVar);
@@ -1245,7 +1249,6 @@ try {
                 let py = f.baseY + f.offsetY + Math.sin(t * f.speedY + f.phaseY) * f.ampY;
                 const pz = f.baseZ; 
                 
-                // Kollision mit dem Boden
                 const minY = groundY + 1.2; 
                 if (py < minY) py = minY;
 
@@ -1259,13 +1262,20 @@ try {
 
                 const posAttr = f.mesh.geometry.attributes.position;
                 const orig = f.mesh.geometry.userData.originalPositions;
+                const minX = f.mesh.geometry.userData.minX;
+                const width = f.mesh.geometry.userData.width;
+                
                 for (let i = 0; i < posAttr.count; i++) {
                     const ox = orig[i * 3];
                     const oy = orig[i * 3 + 1];
                     const oz = orig[i * 3 + 2];
-                    const tailWeight = Math.max(0, ox + 0.5); 
-                    const wave = Math.sin(t * 3.0 + f.seed + ox * 2.0) * 0.15 * tailWeight;
-                    posAttr.setXYZ(i, ox, oy, oz + wave);
+                    
+                    // Normiertes Gewicht (0 an einem Ende, 1 am anderen)
+                    const tailWeight = Math.max(0, (ox - minX) / width); 
+                    // WICHTIG: Wackeln auf der Y-Achse (Hoch/Runter) statt Z-Achse (Tiefe)
+                    const wave = Math.sin(t * 6.0 + f.seed + ox * 4.0) * 0.1 * tailWeight;
+                    
+                    posAttr.setXYZ(i, ox, oy + wave, oz);
                 }
                 posAttr.needsUpdate = true;
 
