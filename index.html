@@ -19,9 +19,8 @@
             z-index: 9999 !important; border-radius: 0 !important;
             background-color: #020617 !important;
         }
-        .aquarium-bg-tinted {
-            background-blend-mode: screen; 
-            background-color: #bae6fd; 
+        /* Hintergrundbild unbearbeitet */
+        .aquarium-bg {
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -106,6 +105,12 @@
                                 <span class="text-xs text-blue-400 font-bold w-3">B</span>
                                 <input type="range" id="bSlider" min="0" max="255" class="w-full accent-blue-500">
                                 <span id="bVal" class="text-[10px] w-6 text-right text-slate-400">255</span>
+                            </div>
+                            <!-- NEU: Helligkeitsregler -->
+                            <div class="flex items-center gap-2 pt-1 border-t border-slate-700/50">
+                                <span class="text-xs text-slate-300 font-bold w-3">H</span>
+                                <input type="range" id="brightnessSlider" min="10" max="200" value="100" class="w-full accent-slate-300">
+                                <span id="brightnessVal" class="text-[10px] w-6 text-right text-slate-400">100%</span>
                             </div>
                             <div class="flex items-center justify-between mt-1 pt-1 border-t border-slate-700/50">
                                 <div id="colorPreview" class="w-6 h-6 rounded-md border border-slate-500 bg-amber-400 shadow-inner"></div>
@@ -385,7 +390,6 @@ try {
         const ctx = compositeCanvas.getContext('2d');
         const imgData = ctx.getImageData(0, 0, W, H).data;
 
-        // 1. Heightmap erstellen (Weichzeichnen für die Wölbung)
         const blurCanvas = document.createElement('canvas');
         blurCanvas.width = W; blurCanvas.height = H;
         const bCtx = blurCanvas.getContext('2d');
@@ -403,8 +407,7 @@ try {
         const contourPoints = traceContour(imgData, W, H);
         if (!contourPoints) return new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xff0000}));
 
-        // 2. Raster für dichten Polycount (Triangulierung)
-        const step = 3; // Schrittweite 3 ist ein guter Kompromiss aus Performance und Dichte
+        const step = 3; 
         const positions = [];
         const uvs = [];
         const indices = [];
@@ -414,7 +417,6 @@ try {
         const scale = 150;
         const thickness = parseInt(fishWidthInput.value) / 100;
 
-        // Vorder- und Rückseite erstellen
         for (let y = 0; y < H; y += step) {
             for (let x = 0; x < W; x += step) {
                 if (imgData[(y * W + x) * 4 + 3] > 10) {
@@ -423,12 +425,10 @@ try {
 
                     const z = h * thickness;
 
-                    // Vorderseite (Z nach vorne)
                     const vF = positions.length / 3;
                     positions.push((x - cx) / scale, -(y - cy) / scale, z);
                     uvs.push(x / W, 1.0 - (y / H));
 
-                    // Rückseite (Z nach hinten)
                     const vB = positions.length / 3;
                     positions.push((x - cx) / scale, -(y - cy) / scale, -z);
                     uvs.push(x / W, 1.0 - (y / H));
@@ -438,7 +438,6 @@ try {
             }
         }
 
-        // Dreiecke (Indices) für Vorder- und Rückseite verbinden
         for (let y = 0; y < H; y += step) {
             for (let x = 0; x < W; x += step) {
                 const cur = grid[`${x}_${y}`];
@@ -449,25 +448,19 @@ try {
                 const downRight = grid[`${x + step}_${y + step}`];
 
                 if (right && down && downRight) {
-                    // Vorderseite
                     indices.push(cur.vF, right.vF, down.vF);
                     indices.push(right.vF, downRight.vF, down.vF);
-                    // Rückseite
                     indices.push(cur.vB, down.vB, right.vB);
                     indices.push(right.vB, down.vB, downRight.vB);
                 }
             }
         }
 
-        // 3. PERFEKTE SEITENWÄNDE (Verhindert Löcher)
-        // Wir verbinden die exakten Konturpunkte von vorne nach hinten
         for (let i = 0; i < contourPoints.length; i++) {
             const p1 = contourPoints[i];
             const p2 = contourPoints[(i + 1) % contourPoints.length];
-
             const h1 = hData[(p1.y * W + p1.x) * 4] / 255;
             const h2 = hData[(p2.y * W + p2.x) * 4] / 255;
-
             const z1 = h1 * thickness * 0.9; 
             const z2 = h2 * thickness * 0.9;
 
@@ -487,19 +480,19 @@ try {
             positions.push((p2.x - cx) / scale, -(p2.y - cy) / scale, -z2);
             uvs.push(p2.x / W, 1.0 - (p2.y / H));
 
-            // Seitenwand-Dreiecke
             indices.push(vF1, vF2, vB1);
             indices.push(vF2, vB2, vB1);
         }
 
-        // 4. Geometrie zusammenbauen
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
         
-        // WICHTIG: Original-Positionen für die Animation speichern
+        // WICHTIG: Bounding Box berechnen, um die exakte Höhe für den Boden zu kennen
+        geometry.computeBoundingBox();
+        
         geometry.userData.originalPositions = new Float32Array(positions);
 
         const texture = new THREE.CanvasTexture(compositeCanvas);
@@ -534,9 +527,13 @@ try {
     const rSlider = document.getElementById('rSlider');
     const gSlider = document.getElementById('gSlider');
     const bSlider = document.getElementById('bSlider');
+    const brightnessSlider = document.getElementById('brightnessSlider');
+    
     const rVal = document.getElementById('rVal');
     const gVal = document.getElementById('gVal');
     const bVal = document.getElementById('bVal');
+    const brightnessVal = document.getElementById('brightnessVal');
+    
     const colorPreview = document.getElementById('colorPreview');
     const hexValue = document.getElementById('hexValue');
 
@@ -578,15 +575,18 @@ try {
     let isDrawing = false;
     let activeCtx = drawCtx;
 
+    // Speichert die Grundfarben für den Helligkeitsregler
+    let baseR = 251, baseG = 191, baseB = 36;
+
     // ==========================================
-    // HINTERGRUND UPLOAD LOGIK
+    // HINTERGRUND UPLOAD LOGIK (UNBEARBEITET)
     // ==========================================
     bgUpload.addEventListener('change', (e) => {
         const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
             aquariumContainer.style.backgroundImage = `url(${ev.target.result})`;
-            aquariumContainer.classList.add('aquarium-bg-tinted');
+            aquariumContainer.classList.add('aquarium-bg'); // Kein Blend-Mode mehr!
             resetBgBtn.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
@@ -594,13 +594,13 @@ try {
 
     resetBgBtn.addEventListener('click', () => {
         aquariumContainer.style.backgroundImage = 'none';
-        aquariumContainer.classList.remove('aquarium-bg-tinted');
+        aquariumContainer.classList.remove('aquarium-bg');
         resetBgBtn.classList.add('hidden');
         bgUpload.value = '';
     });
 
     // ==========================================
-    // RGB FARBRAD LOGIK
+    // RGB FARBRAD & HELLIGKEIT LOGIK
     // ==========================================
     toggleColorPickerBtn.addEventListener('click', () => {
         advancedColorPicker.classList.toggle('hidden');
@@ -651,13 +651,28 @@ try {
     }
     drawColorWheel();
 
-    function updateColorUI(r, g, b) {
-        rSlider.value = r; gSlider.value = g; bSlider.value = b;
-        rVal.textContent = r; gVal.textContent = g; bVal.textContent = b;
-        const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+    function updateColorUI(r, g, b, updateBase = true) {
+        if (updateBase) {
+            baseR = r; baseG = g; baseB = b;
+        }
+
+        // Helligkeitsfaktor (100% = 1.0)
+        const factor = parseFloat(brightnessSlider.value) / 100;
+        
+        // Endgültige Farbe berechnen
+        const finalR = Math.min(255, Math.round(baseR * factor));
+        const finalG = Math.min(255, Math.round(baseG * factor));
+        const finalB = Math.min(255, Math.round(baseB * factor));
+
+        rSlider.value = baseR; gSlider.value = baseG; bSlider.value = baseB;
+        rVal.textContent = baseR; gVal.textContent = baseG; bVal.textContent = baseB;
+        brightnessVal.textContent = brightnessSlider.value + '%';
+        
+        const hex = "#" + ((1 << 24) + (finalR << 16) + (finalG << 8) + finalB).toString(16).slice(1).toUpperCase();
         colorPreview.style.backgroundColor = hex;
         hexValue.textContent = hex;
         currentColor = hex;
+        
         document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('ring-4', 'ring-amber-400'));
     }
 
@@ -673,15 +688,22 @@ try {
         let angle = Math.atan2(dy, dx) * 180 / Math.PI;
         if (angle < 0) angle += 360;
         const s = dist / cx; 
-        const [r, g, b] = hslToRgb(angle/360, s, 0.5);
+        
+        // Helligkeit (L) wird auf 50% gesetzt (Standard für das Rad)
+        const l = 0.5; 
+        const [r, g, b] = hslToRgb(angle/360, s, l);
         updateColorUI(r, g, b);
     }
 
     colorWheel.addEventListener('mousedown', pickColorFromWheel);
     colorWheel.addEventListener('touchstart', pickColorFromWheel, {passive: false});
+    
     rSlider.addEventListener('input', () => updateColorUI(+rSlider.value, +gSlider.value, +bSlider.value));
     gSlider.addEventListener('input', () => updateColorUI(+rSlider.value, +gSlider.value, +bSlider.value));
     bSlider.addEventListener('input', () => updateColorUI(+rSlider.value, +gSlider.value, +bSlider.value));
+    
+    brightnessSlider.addEventListener('input', () => updateColorUI(baseR, baseG, baseB, false));
+    
     updateColorUI(251, 191, 36);
 
     // ==========================================
@@ -871,7 +893,10 @@ try {
             btn.classList.add('ring-4', 'ring-amber-400');
             currentColor = btn.dataset.color; 
             const rgb = hexToRgb(currentColor);
+            
+            brightnessSlider.value = 100;
             updateColorUI(rgb[0], rgb[1], rgb[2]);
+            
             isEraser = false; isFill = false;
             eraserBtn.classList.remove('bg-amber-500', 'text-slate-950');
             fillBtn.classList.remove('bg-amber-500', 'text-slate-950');
@@ -1192,9 +1217,10 @@ try {
                     baseZ = (Math.random() - 0.5) * 8; 
                     offsetX = 0; offsetY = 0;
                     
+                    // EXAKTE BODENBERECHNUNG
                     mesh.geometry.computeBoundingBox();
-                    const h = mesh.geometry.boundingBox.max.y - mesh.geometry.boundingBox.min.y;
-                    baseY = groundY + (h * mesh.scale.y) / 2;
+                    const minY = mesh.geometry.boundingBox.min.y;
+                    baseY = groundY - (minY * mesh.scale.y);
                     
                     if (type === 'stone' || type === 'plant') {
                         mesh.rotation.y = Math.random() * Math.PI * 2;
@@ -1277,7 +1303,6 @@ try {
                         const oy = orig[i * 3 + 1];
                         const oz = orig[i * 3 + 2];
                         
-                        // WICHTIG: Wackeln auf der Y-Achse (Hoch/Runter) statt Z-Achse (Tiefe)
                         const wave = Math.sin(t * 6.0 + f.seed + ox * 4.0) * 0.08;
                         
                         posAttr.setXYZ(i, ox, oy + wave, oz);
