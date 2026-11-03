@@ -19,7 +19,6 @@
             z-index: 9999 !important; border-radius: 0 !important;
             background-color: #020617 !important;
         }
-        /* Hintergrundbild unbearbeitet */
         .aquarium-bg {
             background-size: cover;
             background-position: center;
@@ -106,7 +105,6 @@
                                 <input type="range" id="bSlider" min="0" max="255" class="w-full accent-blue-500">
                                 <span id="bVal" class="text-[10px] w-6 text-right text-slate-400">255</span>
                             </div>
-                            <!-- NEU: Helligkeitsregler -->
                             <div class="flex items-center gap-2 pt-1 border-t border-slate-700/50">
                                 <span class="text-xs text-slate-300 font-bold w-3">H</span>
                                 <input type="range" id="brightnessSlider" min="10" max="200" value="100" class="w-full accent-slate-300">
@@ -489,8 +487,6 @@ try {
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         geometry.setIndex(indices);
         geometry.computeVertexNormals();
-        
-        // WICHTIG: Bounding Box berechnen, um die exakte Höhe für den Boden zu kennen
         geometry.computeBoundingBox();
         
         geometry.userData.originalPositions = new Float32Array(positions);
@@ -575,18 +571,17 @@ try {
     let isDrawing = false;
     let activeCtx = drawCtx;
 
-    // Speichert die Grundfarben für den Helligkeitsregler
     let baseR = 251, baseG = 191, baseB = 36;
 
     // ==========================================
-    // HINTERGRUND UPLOAD LOGIK (UNBEARBEITET)
+    // HINTERGRUND UPLOAD LOGIK
     // ==========================================
     bgUpload.addEventListener('change', (e) => {
         const file = e.target.files[0]; if (!file) return;
         const reader = new FileReader();
         reader.onload = (ev) => {
             aquariumContainer.style.backgroundImage = `url(${ev.target.result})`;
-            aquariumContainer.classList.add('aquarium-bg'); // Kein Blend-Mode mehr!
+            aquariumContainer.classList.add('aquarium-bg');
             resetBgBtn.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
@@ -656,10 +651,8 @@ try {
             baseR = r; baseG = g; baseB = b;
         }
 
-        // Helligkeitsfaktor (100% = 1.0)
         const factor = parseFloat(brightnessSlider.value) / 100;
         
-        // Endgültige Farbe berechnen
         const finalR = Math.min(255, Math.round(baseR * factor));
         const finalG = Math.min(255, Math.round(baseG * factor));
         const finalB = Math.min(255, Math.round(baseB * factor));
@@ -689,7 +682,6 @@ try {
         if (angle < 0) angle += 360;
         const s = dist / cx; 
         
-        // Helligkeit (L) wird auf 50% gesetzt (Standard für das Rad)
         const l = 0.5; 
         const [r, g, b] = hslToRgb(angle/360, s, l);
         updateColorUI(r, g, b);
@@ -1098,6 +1090,13 @@ try {
     let groundY = -3.5; 
     let currentFrustumSize = 12; 
     
+    // Panning-Variablen
+    let isPanning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    let cameraStartX = 0;
+    let cameraStartY = 0;
+
     window.initAquarium = function() {
         const container = document.getElementById('aquariumContainer');
         if (!aquariumRenderer) {
@@ -1160,6 +1159,45 @@ try {
                 zoomSlider.value = currentFrustumSize;
                 updateCameraZoom();
             }, { passive: false });
+
+            // NEU: PANEN MIT MITTLERER MAUSTASTE
+            aquariumRenderer.domElement.addEventListener('mousedown', (e) => {
+                if (e.button === 1) { // Mittlere Maustaste
+                    e.preventDefault();
+                    isPanning = true;
+                    panStartX = e.clientX;
+                    panStartY = e.clientY;
+                    cameraStartX = aquariumCamera.position.x;
+                    cameraStartY = aquariumCamera.position.y;
+                    aquariumRenderer.domElement.style.cursor = 'grabbing';
+                }
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (isPanning) {
+                    const dx = e.clientX - panStartX;
+                    const dy = e.clientY - panStartY;
+
+                    const aspect = aquariumContainer.clientWidth / aquariumContainer.clientHeight;
+                    const frustumWidth = currentFrustumSize * aspect;
+                    
+                    const worldDeltaX = (dx / aquariumContainer.clientWidth) * frustumWidth;
+                    const worldDeltaY = (dy / aquariumContainer.clientHeight) * currentFrustumSize;
+
+                    aquariumCamera.position.x = cameraStartX - worldDeltaX;
+                    aquariumCamera.position.y = cameraStartY + worldDeltaY;
+                }
+            });
+
+            window.addEventListener('mouseup', (e) => {
+                if (e.button === 1) {
+                    isPanning = false;
+                    aquariumRenderer.domElement.style.cursor = 'default';
+                }
+            });
+
+            // Verhindert das Öffnen des Kontextmenüs beim Klicken (falls nötig)
+            aquariumRenderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
         }
         
         loadFishFromStorage();
@@ -1217,7 +1255,6 @@ try {
                     baseZ = (Math.random() - 0.5) * 8; 
                     offsetX = 0; offsetY = 0;
                     
-                    // EXAKTE BODENBERECHNUNG
                     mesh.geometry.computeBoundingBox();
                     const minY = mesh.geometry.boundingBox.min.y;
                     baseY = groundY - (minY * mesh.scale.y);
@@ -1417,6 +1454,8 @@ try {
 
     function onAquariumClick(event) {
         if (!aquariumRenderer) return;
+        if (event.button !== 0) return; // Nur bei linker Maustaste klicken
+
         const rect = aquariumRenderer.domElement.getBoundingClientRect();
         const mouse = new THREE.Vector2();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
