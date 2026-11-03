@@ -315,7 +315,7 @@ try {
     });
 
     // ==========================================
-    // KONTUR-ERKENNUNG & MESH (STABILISIERT)
+    // EXAKTE KONTUR-ERKENNUNG
     // ==========================================
     function traceContour(imgData, width, height) {
         const alpha = (x, y) => {
@@ -377,60 +377,130 @@ try {
         return cleanPath.length > 5 ? cleanPath : null;
     }
 
+    // ==========================================
+    // MESH GENERIERUNG (TRIANGULIERUNG + WÖLBUNG)
+    // ==========================================
     function buildFishGeometry(compositeCanvas) {
         const W = 512, H = 512;
         const ctx = compositeCanvas.getContext('2d');
         const imgData = ctx.getImageData(0, 0, W, H).data;
 
+        // 1. Heightmap erstellen (Weichzeichnen für die Wölbung)
+        const blurCanvas = document.createElement('canvas');
+        blurCanvas.width = W; blurCanvas.height = H;
+        const bCtx = blurCanvas.getContext('2d');
+        bCtx.fillStyle = 'black';
+        bCtx.fillRect(0, 0, W, H);
+        bCtx.drawImage(drawCanvas, 0, 0);
+
+        const hCanvas = document.createElement('canvas');
+        hCanvas.width = W; hCanvas.height = H;
+        const hCtx = hCanvas.getContext('2d');
+        hCtx.filter = 'blur(12px)'; 
+        hCtx.drawImage(blurCanvas, 0, 0);
+        const hData = hCtx.getImageData(0, 0, W, H).data;
+
         const contourPoints = traceContour(imgData, W, H);
         if (!contourPoints) return new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), new THREE.MeshBasicMaterial({color: 0xff0000}));
 
-        const shape = new THREE.Shape();
+        // 2. Raster für dichten Polycount (Triangulierung)
+        const step = 3; // Schrittweite 3 ist ein guter Kompromiss aus Performance und Dichte
+        const positions = [];
+        const uvs = [];
+        const indices = [];
+        const grid = {};
+
         const cx = 256, cy = 256;
         const scale = 150;
-
-        shape.moveTo((contourPoints[0].x - cx) / scale, -(contourPoints[0].y - cy) / scale);
-        for (let i = 1; i < contourPoints.length; i++) {
-            shape.lineTo((contourPoints[i].x - cx) / scale, -(contourPoints[i].y - cy) / scale);
-        }
-        shape.closePath();
-
         const thickness = parseInt(fishWidthInput.value) / 100;
 
-        // WASSERDICHTE EXTRUSION (Verhindert Löcher und Verzerrungen)
-        const extrudeSettings = {
-            depth: 0.2, 
-            bevelEnabled: true,
-            bevelThickness: thickness, 
-            bevelSize: 0, // 0 = Die Form bleibt exakt der Umriss
-            bevelSegments: 8,
-            curveSegments: 1
-        };
+        // Vorder- und Rückseite erstellen
+        for (let y = 0; y < H; y += step) {
+            for (let x = 0; x < W; x += step) {
+                if (imgData[(y * W + x) * 4 + 3] > 10) {
+                    let h = hData[(y * W + x) * 4] / 255.0;
+                    if (imgData[(y * W + x) * 4 + 3] < 50) h = 0;
 
-        const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-        // Nicht zentrieren, da bereits am Canvas-Ursprung ausgerichtet
+                    const z = h * thickness;
 
-        const posAttr = geometry.attributes.position;
-        const uvAttr = geometry.attributes.uv;
-        
-        // Speichere die Original-Positionen für die Schwimm-Animation
-        geometry.userData.originalPositions = new Float32Array(posAttr.array);
+                    // Vorderseite (Z nach vorne)
+                    const vF = positions.length / 3;
+                    positions.push((x - cx) / scale, -(y - cy) / scale, z);
+                    uvs.push(x / W, 1.0 - (y / H));
 
-        // Perfektes UV-Mapping zurück auf die Zeichnung
-        for (let i = 0; i < posAttr.count; i++) {
-            const x = posAttr.getX(i);
-            const y = posAttr.getY(i);
-            
-            const canvasX = x * scale + cx;
-            const canvasY = -y * scale + cy; 
-            
-            const u = canvasX / W;
-            const v = 1.0 - (canvasY / H);
-            
-            uvAttr.setXY(i, u, v);
+                    // Rückseite (Z nach hinten)
+                    const vB = positions.length / 3;
+                    positions.push((x - cx) / scale, -(y - cy) / scale, -z);
+                    uvs.push(x / W, 1.0 - (y / H));
+
+                    grid[`${x}_${y}`] = { vF, vB };
+                }
+            }
         }
-        uvAttr.needsUpdate = true;
+
+        // Dreiecke (Indices) für Vorder- und Rückseite verbinden
+        for (let y = 0; y < H; y += step) {
+            for (let x = 0; x < W; x += step) {
+                const cur = grid[`${x}_${y}`];
+                if (!cur) continue;
+
+                const right = grid[`${x + step}_${y}`];
+                const down = grid[`${x}_${y + step}`];
+                const downRight = grid[`${x + step}_${y + step}`];
+
+                if (right && down && downRight) {
+                    // Vorderseite
+                    indices.push(cur.vF, right.vF, down.vF);
+                    indices.push(right.vF, downRight.vF, down.vF);
+                    // Rückseite
+                    indices.push(cur.vB, down.vB, right.vB);
+                    indices.push(right.vB, down.vB, downRight.vB);
+                }
+            }
+        }
+
+        // 3. PERFEKTE SEITENWÄNDE (Verhindert Löcher)
+        // Wir verbinden die exakten Konturpunkte von vorne nach hinten
+        for (let i = 0; i < contourPoints.length; i++) {
+            const p1 = contourPoints[i];
+            const p2 = contourPoints[(i + 1) % contourPoints.length];
+
+            const h1 = hData[(p1.y * W + p1.x) * 4] / 255;
+            const h2 = hData[(p2.y * W + p2.x) * 4] / 255;
+
+            const z1 = h1 * thickness * 0.9; 
+            const z2 = h2 * thickness * 0.9;
+
+            const vF1 = positions.length / 3;
+            positions.push((p1.x - cx) / scale, -(p1.y - cy) / scale, z1);
+            uvs.push(p1.x / W, 1.0 - (p1.y / H));
+
+            const vB1 = positions.length / 3;
+            positions.push((p1.x - cx) / scale, -(p1.y - cy) / scale, -z1);
+            uvs.push(p1.x / W, 1.0 - (p1.y / H));
+
+            const vF2 = positions.length / 3;
+            positions.push((p2.x - cx) / scale, -(p2.y - cy) / scale, z2);
+            uvs.push(p2.x / W, 1.0 - (p2.y / H));
+
+            const vB2 = positions.length / 3;
+            positions.push((p2.x - cx) / scale, -(p2.y - cy) / scale, -z2);
+            uvs.push(p2.x / W, 1.0 - (p2.y / H));
+
+            // Seitenwand-Dreiecke
+            indices.push(vF1, vF2, vB1);
+            indices.push(vF2, vB2, vB1);
+        }
+
+        // 4. Geometrie zusammenbauen
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+        geometry.setIndex(indices);
         geometry.computeVertexNormals();
+        
+        // WICHTIG: Original-Positionen für die Animation speichern
+        geometry.userData.originalPositions = new Float32Array(positions);
 
         const texture = new THREE.CanvasTexture(compositeCanvas);
         texture.minFilter = THREE.LinearFilter; 
